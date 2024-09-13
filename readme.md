@@ -1,7 +1,7 @@
 <p align="center">
-  <img alt="Steam Subscriptions" src="https://img.shields.io/steam/favorites/104625632?style=for-the-badge&logo=steam&label=Steam%20subscriptions&color=black">
+  <img alt="Steam Subscriptions" src="https://img.shields.io/steam/subscriptions/104625632?style=for-the-badge&logo=steam&label=Steam%20subscriptions&color=black">
   <img alt="Steam Favorites" src="https://img.shields.io/steam/favorites/104625632?style=for-the-badge&logo=steam&label=Steam%20favorites&color=black">
-  <img alt="Steam Update Date" src="https://img.shields.io/steam/favorites/104625632?style=for-the-badge&logo=steam&label=Steam%20last%20update&color=black">
+  <img alt="Steam Update Date" src="https://img.shields.io/steam/update-date/104625632?style=for-the-badge&logo=steam&label=Steam%20last%20update&color=black">
 </p>
 
 # Extreme Football Throwdown
