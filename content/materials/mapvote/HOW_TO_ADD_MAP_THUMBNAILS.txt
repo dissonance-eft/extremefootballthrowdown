@@ -1,0 +1,41 @@
+MAP VOTE THUMBNAILS
+===================
+
+Place map thumbnail images in this folder.
+
+Each map needs TWO files (a .vtf texture and a .vmt material):
+  - <mapname>.vtf  (the actual image, converted from PNG/JPG)
+  - <mapname>.vmt  (a tiny text file that tells Source engine how to render it)
+
+Example for a map called "eft_stadium":
+  mapvote/eft_stadium.vtf
+  mapvote/eft_stadium.vmt
+
+STEP 1: Create the .vtf
+  Use VTFEdit (https://nemstools.github.io/pages/VTFLib-Download.html)
+  - Open your PNG/JPG screenshot (recommended size: 512x256 or 256x128)
+  - File > Save As > eft_stadium.vtf
+  - Settings: DXT1 (no alpha needed), no mipmaps is fine
+
+STEP 2: Create the .vmt
+  Create a text file named eft_stadium.vmt with this content:
+
+  "UnlitGeneric"
+  {
+      "$basetexture" "mapvote/eft_stadium"
+      "$ignorez" 1
+      "$nolod" 1
+  }
+
+STEP 3: Done!
+  The map vote UI will automatically find and display the thumbnail.
+
+ALTERNATIVE: Just drop .png files here
+  Source engine can also load .png directly in some cases via Material().
+  Try placing eft_stadium.png here and test in-game. If it doesn't work,
+  use the VTF/VMT method above.
+
+The map vote system searches for thumbnails in this order:
+  1. materials/mapvote/<mapname>  (this folder - RECOMMENDED)
+  2. materials/maps/thumb/<mapname>
+  3. materials/maps/<mapname>

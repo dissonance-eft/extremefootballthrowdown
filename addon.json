@@ -1,0 +1,14 @@
+{
+	"title": "Extreme Football Throwdown",
+	"type": "gamemode",
+	"tags": ["gamemode", "fun", "realism"],
+	"ignore": [
+		"*.psd",
+		"*.xcf",
+		"*.txt",
+		"*.md",
+		"*.pdn",
+		"*.bat",
+		"*.exe"
+	]
+}

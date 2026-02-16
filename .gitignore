@@ -1,0 +1,24 @@
+# Design document (private, not shipped)
+design.md
+
+# s&box port stubs (separate repo eventually)
+sbox/
+
+# Backup files
+eftbackup/
+*.7z
+
+# Windows junk
+nul
+Thumbs.db
+Desktop.ini
+
+# Claude Code config
+.claude/
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
