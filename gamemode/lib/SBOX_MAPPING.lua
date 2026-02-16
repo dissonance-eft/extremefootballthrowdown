@@ -1,0 +1,115 @@
+-- lib/SBOX_MAPPING.lua
+-- ============================================================================
+-- S&BOX PORTING REFERENCE — DO NOT INCLUDE IN GAMEMODE
+-- This file documents the GMod Lua → s&box C# mapping for the OOP layer.
+-- Generated from actual s&box engine source at Desktop/helix/sbox/engine/
+-- ============================================================================
+--
+-- COMPONENT LIFECYCLE (Component.Update.cs):
+--   OnAwake()        → called once at initialization
+--   OnStart()        → called once before first OnUpdate, when enabled
+--   OnEnabled()      → called when component becomes active
+--   OnDisabled()     → called when component becomes inactive
+--   OnUpdate()       → called every frame (≈ GM:Think)
+--   OnFixedUpdate()  → called every physics tick
+--   OnDestroy()      → called when component/GameObject is destroyed
+--
+-- NETWORKING (Rpc.Attributes.cs, Sync.cs):
+--   [Rpc.Broadcast]               → calls method on ALL clients (replaces net.Broadcast)
+--   [Rpc.Host]                    → calls method on HOST only (replaces net.SendToServer)
+--   [Rpc.Owner]                   → calls method on OWNER only (replaces net.Send(ply))
+--   [Sync]                        → auto-synced property (replaces NWVar/SetGlobal*)
+--   [Sync(SyncFlags.FromHost)]    → host-only sync (replaces server-authoritative NWVar)
+--   [Sync(SyncFlags.Interpolate)] → interpolated sync (for smooth positions)
+--   Rpc.FilterInclude(conn)       → send RPC to specific connection (replaces net.Send)
+--   Rpc.FilterExclude(conn)       → send RPC to everyone except (no GMod equivalent)
+--   Rpc.Caller                    → who called this RPC (replaces net.Receive sender)
+--   Connection.All                → all connected clients (replaces player.GetAll)
+--   Connection.Host               → the host connection (replaces no GMod equivalent)
+--   GameObject.NetworkSpawn()     → network a spawned object (replaces no GMod equivalent)
+--
+-- CLASS MAPPING:
+--   class("MyClass")           → public class MyClass : Component { }
+--   class("MyClass", Base)     → public class MyClass : Base { }
+--   ctor(...)                  → protected override void OnStart() + constructor
+--   self.ply                   → GameObject (the entity IS the component host)
+--   IsValid(self.ply)          → component null check / Component.IsValid
+--   CurTime()                  → Time.Now
+--   timer.Simple(n, fn)        → GameTask.RunInMainThread(async () => { await Task.DelaySeconds(n); fn(); })
+--   timer.Create(id, n, 0, fn) → custom timer component with OnFixedUpdate
+--   Promise.Delay(n)           → await Task.DelaySeconds(n)
+--   Event:Add(fn, id)          → IMyEvent.Post(x => x.Method())  (ISceneEvent<T> pattern)
+--
+-- TIMER TYPES (Utility/TimeSince.cs):
+--   TimeSince lastUsed = 0     → reset timer, check with (lastUsed > 5)
+--   TimeUntil nextAttack = 10  → countdown, bool conversion when done
+--   (replaces CurTime() comparisons throughout)
+--
+-- INPUT (Input.cs):
+--   ply:KeyDown(IN_FORWARD)    → Input.Down("forward")
+--   ply:KeyDown(IN_ATTACK)     → Input.Down("attack1")
+--   ply:KeyDown(IN_JUMP)       → Input.Pressed("jump")
+--   cmd:SetForwardMove(400)    → Input.AnalogMove (Vector3)
+--   cmd:SetViewAngles(ang)     → Input.AnalogLook (Angles)
+--
+-- PLAYER CONTROLLER (PlayerController.cs):
+--   s&box has a built-in PlayerController : Component with:
+--     [Property] WalkSpeed, RunSpeed, DuckedSpeed, JumpSpeed
+--     [Sync] WishVelocity
+--     IsOnGround, IsAirborne, IsDucking, IsClimbing, IsSwimming
+--     Uses MoveMode system for extensible movement behaviors
+--     Body (Rigidbody), BodyRadius, BodyHeight, BodyMass
+--
+-- CHARACTER CONTROLLER (CharacterController.cs):
+--   Simpler kinematic controller (no Rigidbody):
+--     Move(), MoveTo(), Accelerate(), ApplyFriction(), Punch()
+--     [Sync] Velocity, IsOnGround
+--
+-- NAVIGATION (NavMeshAgent.cs):
+--   NavMeshAgent : Component for bot pathfinding:
+--     MoveTo(position), Stop(), GetPath(), GetLookAhead()
+--     [Property] MaxSpeed, Acceleration, Height, Radius
+--     No built-in "Bot" component — build custom with NavMeshAgent + game logic
+--
+-- DAMAGE (DamageInfo.cs):
+--   DamageInfo class (extensible, not a struct):
+--     Attacker (GameObject), Weapon (GameObject), Damage (float)
+--     Origin, Position, Hitbox, Tags
+--
+-- UI/HUD:
+--   s&box uses Razor Components (.razor files) for UI
+--   No VGUI/DFrame equivalent — all HTML/CSS/Razor
+--   Panel base class for custom components
+--
+-- EDITOR ATTRIBUTES:
+--   [Property]                    → expose to s&box editor inspector
+--   [Property, Title("Name")]     → with display name
+--   [Property, Range(0, 100)]     → with slider
+--   [Property, Group("Section")]  → grouped in inspector
+--   [Property, Hide]              → hidden from inspector
+--
+-- CONNECTION EVENTS (Component.INetworkListener):
+--   Implement Component.INetworkListener interface:
+--     AcceptConnection(conn, ref reason)  → accept/reject
+--     OnConnected(conn)                   → player joined
+--     OnDisconnected(conn)                → player left
+--     OnActive(conn)                      → player fully loaded
+--     OnBecameHost(previousHost)          → host migration
+--
+-- KEY DIFFERENCES FROM GMOD:
+--   1. No GAMEMODE table — use Component + GameObjectSystem<T>
+--   2. No hook.Add — use ISceneEvent<T> interfaces or lifecycle methods
+--   3. No net.* library — use [Rpc.*] attributes and [Sync] properties
+--   4. No NWVar — use [Sync] properties
+--   5. No timer.* — use TimeSince/TimeUntil or async/await
+--   6. No ents.Create — use GameObject.Clone() or Scene.CreateObject()
+--   7. No SetGlobalBool etc — use [Sync(SyncFlags.FromHost)] on manager component
+--   8. Entities are GameObjects with Components, not a single class
+--   9. SERVER/CLIENT → Networking.IsHost / !Networking.IsHost (or IsProxy checks)
+--  10. AddCSLuaFile → not needed, all code is compiled C#
+--
+-- OBSOLETE PATTERNS (do NOT use in s&box):
+--   [Broadcast] → use [Rpc.Broadcast]
+--   [Authority] → use [Rpc.Owner]
+--   [HostSync]  → use [Sync(SyncFlags.FromHost)]
+--   Panel.SetClass → use Razor @attributes or CSS classes
