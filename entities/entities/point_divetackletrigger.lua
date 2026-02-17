@@ -1,6 +1,6 @@
 /// MANIFEST LINKS:
 /// Mechanics: M-130 (Collision - Tackle)
-ENT.Type = "point"
+ENT.Type = "anim"
 
 function ENT:Initialize()
 	self:PhysicsInitBox(Vector(-16, -16, -16), Vector(16, 16, 72))
@@ -61,7 +61,7 @@ function ENT:StartTouch(hitent)
 			self.Hit = hitent --self.Hit[hitent] = true
 			--pl:ChargeHit(hitent)
 			--if hitent:Alive() then
-				pl:ChargeLaunch(hitent, true)
+				hitent:ThrowFromPosition(pl:GetLaunchPos(), 400, true, pl)
 				hitent:SetLastAttacker(pl)
 				hitent:SetStateInteger(KD_STATE_DIVETACKLED)
 				hitent:SetStateEntity(pl)

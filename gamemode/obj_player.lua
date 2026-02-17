@@ -121,9 +121,14 @@ if SERVER then
 
         local teamid = ply:Team()
 
-        local modelname = player_manager.TranslatePlayerModel(ply:GetInfo("cl_playermodel"))
+        local modelname = ply:GetInfo("cl_playermodel")
         if not GM.AllowedPlayerModels[modelname:lower()] then
-            modelname = teamid == TEAM_RED and "models/player/barney.mdl" or "models/player/breen.mdl"
+            -- Pick a random valid model from the allowed list
+            local validModels = {}
+            for mdl, allowed in pairs(GM.AllowedPlayerModels) do
+                if allowed then table.insert(validModels, mdl) end
+            end
+            modelname = table.Random(validModels)
         end
         ply:SetModel(modelname)
 
@@ -170,13 +175,6 @@ if SERVER then
 
         if attacker ~= ply and attacker:IsValid() and attacker:IsPlayer() then
             ply:SetLastAttacker(attacker)
-
-            attacker.PointsCarry = attacker.PointsCarry + damage * GAMEMODE.PointsForDamage
-            if attacker.PointsCarry >= 1 then
-                local toadd = math.floor(attacker.PointsCarry)
-                attacker:AddFrags(toadd)
-                attacker.PointsCarry = attacker.PointsCarry - toadd
-            end
         end
 
         ply:PlayPainSound()

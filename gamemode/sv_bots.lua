@@ -16,20 +16,36 @@ CreateConVar("eft_bots_skill", "1.0", FCVAR_NOTIFY, "Bot skill multiplier (0.1 -
 
 local function CreateBot(teamid)
     if not teamid then return end
-    local name = "Bot " .. math.random(1000)
-    -- Try to find a unique name
+    -- Human-like Bot Names (No more "Bot 34")
+    local botNames = {
+        "ViperBot", "CobraBot", "PythonBot", "RaptorBot", "RexBot", "TankBot", "DozerBot",
+        "LocoBot", "PsychoBot", "GonzoBot", "ZeroBot", "GlitchBot", "SystemBot", "ErrorBot",
+        "NeonBot", "FluxBot", "BitBot", "ByteBot", "PixelBot", "VoxelBot",
+        "AlphaBot", "BravoBot", "CharlieBot", "DeltaBot", "EchoBot", "FoxtrotBot",
+        "VectorBot", "VertexBot", "PolygonBot", "ShaderBot"
+    }
+    
+    local name = "Bot"
     local distinct = false
+    
+    -- Try 10 times to pick a unique unused name
     for i=1, 10 do
-        local testName = table.Random({"Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa", "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "EFTBot"}) .. " " .. math.random(99)
+        local testName = table.Random(botNames)
         local taken = false
         for _, v in ipairs(player.GetAll()) do
             if v:Nick() == testName then taken = true break end
         end
+        
         if not taken then
             name = testName
             distinct = true
             break
         end
+    end
+    
+    -- Fallback if server is full of named bots
+    if not distinct then
+        name = "Bot " .. math.random(100, 999)
     end
     
     local bot = player.CreateNextBot(name)
@@ -51,12 +67,12 @@ end
 local function BalanceTeams()
     if not GetConVar("eft_bots_enabled"):GetBool() then return end
     
-    -- Default to 6 bots total (3 per team) if convar missing
-    local totalBots = 6
+    -- Default to 10 bots total (5 per team) if convar missing
+    local totalBots = 10
     if ConVarExists("eft_bots_count") then
         totalBots = GetConVar("eft_bots_count"):GetInt()
     else
-        CreateConVar("eft_bots_count", "6", FCVAR_NOTIFY, "Target number of players per team (Bots fill gaps)")
+        CreateConVar("eft_bots_count", "10", FCVAR_NOTIFY, "Target number of players per team (Bots fill gaps)")
     end
 
     local targetPerTeam = math.ceil(totalBots / 2)
@@ -65,9 +81,12 @@ local function BalanceTeams()
     local blueTotal = team.NumPlayers(TEAM_BLUE)
     
     -- Add bots if needed
+    -- Use independent IFs so both teams can fill simultaneously
     if redTotal < targetPerTeam then
         CreateBot(TEAM_RED)
-    elseif blueTotal < targetPerTeam then
+    end
+    
+    if blueTotal < targetPerTeam then
         CreateBot(TEAM_BLUE)
     end
     

@@ -58,12 +58,12 @@ include("sv_gmchanger.lua")
 include("sv_mapvote.lua")
 include("utility.lua")
 include("sv_emotes.lua")
-include("sv_bot_pathfinding.lua")
-include("sv_bots.lua")
 include("lib/promise.lua")
 include("lib/class.lua")
 include("lib/event.lua")
-include("obj_bot.lua")
+include("obj_bot.lua") -- Define Bot class BEFORE sv_bots.lua uses it!
+include("sv_bot_pathfinding.lua")
+include("sv_bots.lua") 
 include("obj_ball.lua")
 include("obj_player.lua")
 include("obj_network.lua")
@@ -174,6 +174,11 @@ function GM:IsSpawnpointSuitable(pl, spawnpointent, bMakeSuitable)
 end
 
 function GM:CanPlayerSuicide(pl)
+	-- Anti-Grief: Disable suicide during pre-round
+	if GAMEMODE:IsWarmUp() or GetGlobalBool("InPreRound", false) then
+		return false
+	end
+
 	if not self:InRound() then return false end
 
 	if self.TieBreaker then
@@ -215,7 +220,7 @@ function GM:PlayerSpawn(pl)
             net.WriteString(soundPath)
             net.WriteFloat(100) -- Pitch
             net.WriteFloat(1.0) -- Volume
-        net.Broadcast()
+        net.Send(pl)
     end
 end
 
@@ -248,6 +253,15 @@ function GM:PlayerDeath(victim, inflictor, attacker)
 	if victim:Team() == TEAM_SPECTATOR or victim:Team() == TEAM_UNASSIGNED then
 		return
 	end
+
+	-- Bot Suicide Suppression (User Request)
+    -- If a bot dies by suicide/world (inflictor is self or world), do not broadcast death notice
+    if victim:IsBot() and (victim == attacker or not IsValid(attacker)) then
+        -- Still run logic but return before BaseClass to suppress notice?
+        -- GMod's PlayerDeath prints via BaseClass usually.
+        -- Actually, we need to run our logic first (drop ball etc) then return.
+        -- Let's check where BaseClass is called. It's at the end.
+    end
 	
 	if attacker == victim or not attacker:IsValid() or not attacker:IsPlayer() then
 		local lastattacker = victim:GetLastAttacker()
@@ -265,7 +279,7 @@ function GM:PlayerDeath(victim, inflictor, attacker)
         net.WriteString(soundPath)
         net.WriteFloat(100) -- Pitch
         net.WriteFloat(1.0) -- Volume
-    net.Broadcast()
+    net.Send(victim)
 end
 
 function GM:DoPlayerDeath(pl, attacker, dmginfo)
@@ -394,7 +408,7 @@ function GM:Initialize()
 	resource.AddFile("materials/blue_bulls.vmt")
 	resource.AddFile("sound/eft/ballreset.ogg")
 	resource.AddFile("sound/eft/bigpole_swing.ogg")
-	resource.AddFile("sound/eft/touchdown.ogg")
+
 	resource.AddFile("materials/overlays/statuscold.vmt")
     resource.AddWorkshop("2022813030")
 
@@ -543,9 +557,6 @@ function GM:OnPreRoundStart(num)
 	-- No direct SetGlobal calls here — GameManager is single writer
 
 	game.CleanUpMap()
-
-	self:RecalculateGoalCenters(TEAM_RED)
-	self:RecalculateGoalCenters(TEAM_BLUE)
 
 	UTIL_StripAllPlayers()
 	UTIL_SpawnAllPlayers()

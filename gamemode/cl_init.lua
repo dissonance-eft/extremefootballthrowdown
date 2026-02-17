@@ -31,6 +31,21 @@ include("cl_postprocess.lua")
 
 include("vgui/dex3dnotification.lua")
 
+-- Suppress "Player has joined the game" for Bots
+hook.Add("ChatText", "SuppressBotJoinLeave", function(index, name, text, type)
+	if type == "joinleave" then
+		-- Check if the name belongs to a bot
+		-- Note: player.GetBots() might not be updated *immediately* on join, but usually sufficient.
+		-- Alternatively, check simple string patterns or assume all join/leave spam is undesirable in this mode.
+		-- For now, iterate bots:
+		for _, bot in ipairs(player.GetBots()) do
+			if bot:Nick() == name then return true end
+		end
+		-- Also suppress if the text explicitly says "Bot" (common convention)
+		if string.find(name, "Bot") then return true end
+	end
+end)
+
 -- Fretta Legacy Fonts
 function surface.CreateLegacyFont(font, size, weight, antialias, additive, name, shadow, outline, blursize)
 	surface.CreateFont(name, {font = font, size = size, weight = weight, antialias = antialias, additive = additive, shadow = shadow, outline = outline, blursize = blursize})
@@ -759,7 +774,7 @@ function GM:Draw3DRoundWinner()
 	cam.IgnoreZ(true)
 	cam.Start3D2D(EyePos3D2DScreen(1200 - self.RoundEndScroll * 2400, 40), ang, size)
 
-		draw.SimpleText(self.RoundHomeRun and "HOME RUN!!" or "TOUCHDOWN!!", "eft_3dwinnertext", 0, 0, barcol, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+		draw.SimpleText("GOAL", "eft_3dwinnertext", 0, 0, barcol, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 
 	cam.End3D2D()
 	cam.IgnoreZ(false)
@@ -1172,65 +1187,71 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 	if pl:GetObserverMode() == OBS_MODE_CHASE then
 		local ball = self:GetBall()
 		if IsValid(ball) then
-			-- Calculate target position (ball or carrier)
 			local target = ball
 			local carrier = ball:GetCarrier()
 			if IsValid(carrier) then target = carrier end
-			
+
 			local targetPos = target:LocalToWorld(target:OBBCenter())
-			
-			-- Smooth camera focus (Broadcast style: lags slightly behind action)
-			-- Using Lerp 3.0 instead of 5.0 for more weight
-			if not self.SpecCamPos then self.SpecCamPos = targetPos end
-			self.SpecCamPos = LerpVector(FrameTime() * 3.0, self.SpecCamPos, targetPos)
-			
-			-- MANUAL LOOK DETECTION
-			-- Check if user is moving mouse (angles input changes significantly)
-			-- 'angles' argument is the current UserCmd view angles
-			if self.LastSpecAngles and (math.abs(math.AngleDifference(angles.yaw, self.LastSpecAngles.yaw)) > 0.1 or math.abs(math.AngleDifference(angles.pitch, self.LastSpecAngles.pitch)) > 0.1) then
-				self.LastSpecInput = RealTime()
-				-- Sync internal yaw to user input to prevent snapping when switching
-				self.SpecCamYaw = angles.yaw 
+
+			-- On first frame or mode switch: snap to target to avoid lerping from origin
+			if not self.SpecCamPos or not self.SpecCamActive then
+				self.SpecCamPos = targetPos
+				self.SpecCamActive = true
+				-- Initialize yaw from current view to prevent angle snap
+				self.SpecCamYaw = angles.yaw
+				self.SpecCamDist = 350
 			end
-			self.LastSpecAngles = angles
-			
-			local isManual = (RealTime() - (self.LastSpecInput or 0)) < 3.0
-			
-			-- Calculate adjustments
-			-- Pull back camera based on speed (dynamic framing)
-			local dist = 350 + target:GetVelocity():Length() * 0.1
-			local pitch = 0
-			local yaw = 0
-			
-			if isManual then
-				-- Manual Mode: User controls orbit
-				yaw = angles.yaw
-				pitch = angles.pitch
-				-- Clamp pitch to avoid going under map or flipping?
-				pitch = math.Clamp(pitch, -89, 89)
-			else
-				-- Auto Mode: Broadcast Logic
-				pitch = 25 -- Fixed cinematic pitch
-				
-				local vel = target:GetVelocity()
-				if vel:Length() > 50 then -- Lowered threshold to keep tracking longer
-					local moveAng = vel:Angle()
-					if not self.SpecCamYaw then self.SpecCamYaw = moveAng.yaw end
-					
-					-- Smooth Lerp Tracking
-					local diff = math.AngleDifference(moveAng.yaw, self.SpecCamYaw)
-					self.SpecCamYaw = self.SpecCamYaw + diff * FrameTime() * 2.0
-				else
-					-- If stopped, HOLD the last angle
-					if not self.SpecCamYaw then self.SpecCamYaw = 0 end
+
+			-- Smooth focus position (broadcast style: camera lags behind action)
+			-- Use higher lerp rate (5.0) for responsive tracking, avoids stutter on settle
+			local lerpRate = FrameTime() * 5.0
+			self.SpecCamPos = LerpVector(lerpRate, self.SpecCamPos, targetPos)
+
+			-- MANUAL LOOK: detect mouse movement
+			if self.LastSpecAngles then
+				local yawDelta = math.abs(math.AngleDifference(angles.yaw, self.LastSpecAngles.yaw))
+				local pitchDelta = math.abs(math.AngleDifference(angles.pitch, self.LastSpecAngles.pitch))
+				if yawDelta > 0.1 or pitchDelta > 0.1 then
+					self.LastSpecInput = RealTime()
+					self.SpecCamYaw = angles.yaw
+					self.SpecCamPitch = angles.pitch
 				end
-				yaw = self.SpecCamYaw
+			end
+			self.LastSpecAngles = Angle(angles.p, angles.y, 0) -- Copy, not reference
+
+			local isManual = (RealTime() - (self.LastSpecInput or 0)) < 3.0
+
+			-- Dynamic distance: pull back based on speed
+			local targetDist = 350 + target:GetVelocity():Length() * 0.1
+			self.SpecCamDist = Lerp(FrameTime() * 3.0, self.SpecCamDist, targetDist)
+
+			local pitch, yaw
+
+			if isManual then
+				yaw = self.SpecCamYaw or angles.yaw
+				pitch = math.Clamp(self.SpecCamPitch or angles.pitch, -89, 89)
+			else
+				-- Auto broadcast mode: follow target velocity direction
+				pitch = 25
+
+				local vel = target:GetVelocity()
+				if vel:Length2D() > 50 then
+					local moveYaw = vel:Angle().yaw
+					if not self.SpecCamYaw then self.SpecCamYaw = moveYaw end
+
+					local diff = math.AngleDifference(moveYaw, self.SpecCamYaw)
+					-- Smooth yaw tracking (2.5 = responsive but not twitchy)
+					self.SpecCamYaw = self.SpecCamYaw + diff * FrameTime() * 2.5
+				end
+				-- If stopped: hold last angle (no else needed, SpecCamYaw persists)
+
+				yaw = self.SpecCamYaw or 0
 			end
 
 			local camAng = Angle(pitch, yaw, 0)
-			local camPos = self.SpecCamPos - camAng:Forward() * dist
+			local camPos = self.SpecCamPos - camAng:Forward() * self.SpecCamDist
 
-			-- Trace to prevent clipping (Wall Culling)
+			-- Wall/geometry trace to prevent clipping
 			local tr = util.TraceHull({
 				start = self.SpecCamPos,
 				endpos = camPos,
@@ -1239,17 +1260,32 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 				maxs = Vector(8, 8, 8),
 				filter = {ball, carrier, pl}
 			})
-			
-			if tr.Hit then camPos = tr.HitPos + tr.HitNormal * 4 end
-			
-			-- Look at the target (Smoothed angle derived from pos)
-			-- NOTE: Does this override user input visuals?
-			-- CalcView return 'viewAng' sets what is rendered.
-			-- We want to render looking AT the ball from our calculated pos.
+
+			if tr.Hit then
+				camPos = tr.HitPos + tr.HitNormal * 8
+			end
+
+			-- Ensure minimum distance from target to prevent clipping through ball
+			local toCam = camPos - self.SpecCamPos
+			if toCam:Length() < 64 then
+				camPos = self.SpecCamPos - camAng:Forward() * 64
+			end
+
+			-- View angle: always look at the focus point
 			local viewAng = (self.SpecCamPos - camPos):Angle()
-			
+			viewAng.r = 0 -- Kill roll to prevent angle bugs
+
 			return self.BaseClass.CalcView(self, pl, camPos, viewAng, fov, znear, zfar)
 		end
+	-- Clear state when leaving chase mode so re-entry initializes cleanly
+	elseif self.SpecCamActive then
+		self.SpecCamActive = nil
+		self.SpecCamPos = nil
+		self.SpecCamYaw = nil
+		self.SpecCamPitch = nil
+		self.SpecCamDist = nil
+		self.LastSpecAngles = nil
+		self.LastSpecInput = nil
 	end
 
 	if pl:Alive() and pl:GetObserverMode() == OBS_MODE_NONE then
@@ -2025,11 +2061,17 @@ end
 
 function GM:PlayerBindPress( pl, bind, down )
 	if ( pl:IsObserver() && down ) then
-		if ( bind == "+jump" ) then 	RunConsoleCommand( "spec_mode" )	end
-		if ( bind == "+attack" ) then	RunConsoleCommand( "spec_next" )	end
-		if ( bind == "+attack2" ) then	RunConsoleCommand( "spec_prev" )	end
+		-- Space: toggle between ball-follow (CHASE) and free cam (ROAMING)
+		if ( bind == "+jump" ) then
+			RunConsoleCommand( "spec_mode" )
+			return true -- Block the bind from doing anything else
+		end
+		-- Block clicks from cycling targets (only 1 target: ball)
+		-- This prevents accidental angle resets
+		if ( bind == "+attack" ) then return true end
+		if ( bind == "+attack2" ) then return true end
 	end
-	return false	
+	return false
 end
 
 function GM:GetTeamColor( ent )

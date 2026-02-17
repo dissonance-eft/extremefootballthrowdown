@@ -57,6 +57,35 @@ Bot.STATE_SWARM = 3      ---@type number Teammate has ball → escort/block
 Bot.STATE_DEFEND = 4     ---@type number Enemy has ball → intercept/tackle
 Bot.STATE_KNOCKED = 5    ---@type number Currently knocked down
 
+--- Constructor: Called when Bot() is instantiated
+function Bot:initialize(ply)
+    self.ply = ply
+    self.ready = true
+    self.state = Bot.STATE_IDLE
+    self.targetYaw = 0
+    self.targetPitch = 0
+    
+    -- Archetypes (Appendix B)
+    local perstypes = {"Aggressive", "Defensive", "Support", "Balanced"}
+    self.Personality = table.Random(perstypes)
+    
+    -- Curve Bias (P-060): Preference for curving left (-1) or right (1) into collisions
+    self.CurveBias = (math.random() > 0.5) and 1 or -1
+    
+    -- Reaction Time Variance (human delay simulation)
+    self.ReactionTime = math.Rand(0.05, 0.25)
+    
+    -- Pass Frequency (A-002 Safe Passer vs A-001 Ballhog)
+    if self.Personality == "Support" then self.PassFreq = 0.8 else self.PassFreq = 0.2 end
+    
+    self.tackleSkill = math.Rand(0.95, 1.05)
+    self.stuckSince = 0
+    self.stuckPunchAt = 0
+    self.throwCooldown = 0
+    self.jukePhase = math.random() * math.pi * 2
+    self.lastJukeLoopTime = 0
+end
+
 -- ============================================================================
 -- HELPER FUNCTIONS (local, ported from sv_bots.lua)
 -- ============================================================================
@@ -73,9 +102,7 @@ end
 ---@return boolean knocked True if knocked down or getting up
 local function IsKnockedDown(ply)
     if not IsValid(ply) then return false end
-    local meta = FindMetaTable("Player")
-/// MANIFEST LINKS:
-/// Principles: P-010 (Sport Identity - Bot)
+    local state = ply:GetState()
     return state == STATE_KNOCKEDDOWN or state == STATE_KNOCKEDDOWNTOSTAND
 end
 
@@ -86,14 +113,18 @@ end
 ---@param botSpeed number Bot's current speed
 ---@return Vector interceptPoint Predicted intercept position
 local function GetInterceptPoint(botPos, targetPos, targetVel, botSpeed)
-    if targetVel:Length2D() < 50 then return targetPos end
-
     local toTarget = targetPos - botPos
     local dist = toTarget:Length2D()
-
-    local lookAhead = math.Clamp(dist / math.max(botSpeed, 200), 0.2, 1.5)
-    lookAhead = lookAhead * (0.85 + math.random() * 0.3)
-    return targetPos + targetVel * lookAhead * 0.5
+    local tSpeed = targetVel:Length2D()
+    
+    -- S-020 (Bot Positioning): Predict where the target will be, not where it is.
+    -- Simple linear prediction: time = distance / relative_speed
+    local predictedTime = dist / math.max(botSpeed, 350) 
+    
+    -- Cap prediction to avoid running to the moon
+    predictedTime = math.Clamp(predictedTime, 0.0, 1.5)
+    
+    return targetPos + targetVel * predictedTime
 end
 
 --- Count enemies along a path within a given radius (for path-blocking analysis).
@@ -223,7 +254,11 @@ local function FindBestJumpPad(botPos, goalPos, maxDetour)
     local bestPad = nil
     local bestScore = 0
 
-    for _, ent in ipairs(ents.FindByClass("trigger_abspush")) do
+    local candidates = {}
+    table.Add(candidates, ents.FindByClass("trigger_abspush"))
+    table.Add(candidates, ents.FindByClass("trigger_jumppad"))
+
+    for _, ent in ipairs(candidates) do
         if IsValid(ent) and ent:GetEnabled() and ent:GetPushPlayers() then
             local padPos = ent:LocalToWorld(ent:OBBCenter())
             local toPad = padPos - botPos
@@ -339,7 +374,8 @@ function Bot:Think()
     end
 end
 
---- Visual Debugging
+--- Visual Debugging (server-side overlays, visible when eft_dev 1)
+--- Shows: AI state, personality, speed, carrier status, target direction, goal lines
 function Bot:Debug()
     local botPos = self.ply:GetPos() + Vector(0,0,72)
     local stateNames = {
@@ -350,13 +386,66 @@ function Bot:Debug()
         [Bot.STATE_DEFEND] = "DEFEND",
         [Bot.STATE_KNOCKED] = "KNOCKED",
     }
+
+    -- State color: green=attack, red=defend, yellow=chase, blue=swarm, grey=idle
+    local stateColors = {
+        [Bot.STATE_IDLE] = Color(150, 150, 150),
+        [Bot.STATE_CHASE_BALL] = Color(255, 255, 100),
+        [Bot.STATE_ATTACK] = Color(100, 255, 100),
+        [Bot.STATE_SWARM] = Color(100, 150, 255),
+        [Bot.STATE_DEFEND] = Color(255, 100, 100),
+        [Bot.STATE_KNOCKED] = Color(150, 80, 80),
+    }
+
     local stateName = stateNames[self.state] or "?"
-    
-    debugoverlay.Text(botPos, stateName, 0.1)
-    debugoverlay.Axis(self.ply:GetPos(), Angle(0, self.targetYaw, 0), 32, 0.1, true)
-    
-    if self.state == Bot.STATE_ATTACK and self.throwState then
-         debugoverlay.Text(botPos + Vector(0,0,10), "THROW: " .. self.throwState, 0.1)
+    local stateCol = stateColors[self.state] or Color(255, 255, 255)
+    local speed = math.floor(GetBotSpeed(self.ply))
+    local charging = speed >= 300 and self.ply:OnGround()
+
+    -- Line 1: State + personality
+    debugoverlay.Text(botPos, stateName .. " [" .. (self.Personality or "?") .. "]", 0.15)
+
+    -- Line 2: Speed + charge indicator
+    local speedStr = speed .. " HU/s" .. (charging and " CHARGE" or "")
+    debugoverlay.Text(botPos + Vector(0,0,10), speedStr, 0.15)
+
+    -- Line 3: Extra context per state
+    if self.throwState then
+        debugoverlay.Text(botPos + Vector(0,0,20), "THROW: " .. self.throwState, 0.15)
+    end
+    if self.stuckSince > 0 then
+        local stuckFor = string.format("STUCK %.1fs", CurTime() - self.stuckSince)
+        debugoverlay.Text(botPos + Vector(0,0,20), stuckFor, 0.15)
+    end
+
+    -- Direction axis (shows where bot wants to face)
+    debugoverlay.Axis(self.ply:GetPos(), Angle(0, self.targetYaw, 0), 32, 0.15, true)
+
+    -- State-specific visualizations
+    if self.state == Bot.STATE_ATTACK then
+        local enemyTeam = GAMEMODE:GetOppositeTeam(self.ply:Team())
+        local goalPos = GAMEMODE:GetGoalCenter(enemyTeam)
+        if goalPos ~= vector_origin then
+            debugoverlay.Cross(goalPos, 32, 0.15, Color(0, 255, 0), true)
+            debugoverlay.Line(self.ply:GetPos(), goalPos, 0.15, Color(0, 255, 0), true)
+        end
+    elseif self.state == Bot.STATE_DEFEND then
+        local ball = GAMEMODE:GetBall()
+        local carrier = IsValid(ball) and ball:GetCarrier() or nil
+        if IsValid(carrier) then
+            debugoverlay.Line(self.ply:GetPos(), carrier:GetPos(), 0.15, Color(255, 80, 80), true)
+        end
+    elseif self.state == Bot.STATE_CHASE_BALL then
+        local ball = GAMEMODE:GetBall()
+        if IsValid(ball) then
+            debugoverlay.Line(self.ply:GetPos(), ball:GetPos(), 0.15, Color(255, 255, 0), true)
+        end
+    elseif self.state == Bot.STATE_SWARM then
+        local ball = GAMEMODE:GetBall()
+        local carrier = IsValid(ball) and ball:GetCarrier() or nil
+        if IsValid(carrier) then
+            debugoverlay.Line(self.ply:GetPos(), carrier:GetPos(), 0.15, Color(80, 120, 255), true)
+        end
     end
 end
 
@@ -367,9 +456,7 @@ function Bot:DecideState()
     local team = self.ply:Team()
 
     if IsValid(carrier) then
-        -- Strictly verify we actually hold the ball before assuming ATTACK state
-        -- This prevents "Phantom Carrier" where bot thinks it has ball but doesn't
-        if carrier == self.ply and self.ply:GetCarry() == ball then
+        if carrier == self.ply then
             self.state = Bot.STATE_ATTACK
         elseif carrier:Team() == team then
             self.state = Bot.STATE_SWARM
@@ -426,34 +513,39 @@ function Bot:ExecuteState()
             if rank > 1 and curTime < (GAMEMODE.RoundStartTime or 0) + 2.0 then
                 targetPos = botPos -- Stand still
             elseif rank <= math.max(1, total - 1) or ballPos:Distance(botPos) < 1500 then
-                 -- MANIFEST S-005 (Swarm Collapse): If ball is loose, prioritize it.
-                 -- If we are close (<1500u), ALWAYS chase, ignoring "Defender" role.
-                 -- This fixes the issue where defenders "run away" to goal while ball is right next to them.
-                
-                -- CHASER
-                local ballPhys = ball:GetPhysicsObject()
-                local ballVel = IsValid(ballPhys) and ballPhys:GetVelocity() or Vector(0,0,0)
-
-                if ballVel:Length2D() > 100 then
-                    local flatVel = Vector(ballVel.x, ballVel.y, 0)
-                    targetPos = GetInterceptPoint(botPos, ballPos, flatVel, botSpeed)
-                else
-                    targetPos = ballPos
-                end
-
-                -- Jitter
-                local jitterDir = Vector(0, 0, 1):Cross((targetPos - botPos):GetNormalized())
-                local jitterSign = (bot:EntIndex() % 2 == 0) and 1 or -1
-                targetPos = targetPos + jitterDir * jitterSign * 20
+            -- Aggressive Swarm with Spacing (User Request)
+            -- Everyone chases the ball, but we push away from teammates to avoid a perfect stack.
+            
+            -- 1. Primary Vector: The Ball (with velocity prediction)
+            local ballPhys = ball:GetPhysicsObject()
+            local ballVel = IsValid(ballPhys) and ballPhys:GetVelocity() or Vector(0,0,0)
+            
+            if ballVel:Length2D() > 100 then
+                 local flatVel = Vector(ballVel.x, ballVel.y, 0)
+                 targetPos = GetInterceptPoint(botPos, ballPos, flatVel, botSpeed)
             else
-                -- BACK BOT (Sweeper) - Only if far away and we have enough chasers
-                if defenseGoalPos then
-                     local sweepPos = defenseGoalPos * 0.5 + ballPos * 0.5
-                     sweepPos.z = botPos.z
-                     targetPos = sweepPos
-                else
-                    targetPos = ballPos 
+                 targetPos = ballPos
+            end
+
+            -- 2. Repulsion Vector: Spacing from teammates
+            -- If too close to a teammate, push away slightly.
+            local myPos = self.ply:GetPos()
+            local repulsion = Vector(0,0,0)
+            local count = 0
+
+            for _, teammate in ipairs(team.GetPlayers(self.ply:Team())) do
+                if IsValid(teammate) and teammate ~= self.ply and teammate:Alive() then
+                    local distSq = myPos:DistToSqr(teammate:GetPos())
+                    if distSq < 22500 then -- 150 units pricing
+                        local pushDir = (myPos - teammate:GetPos()):GetNormalized()
+                        repulsion = repulsion + pushDir * 120 -- Push away strength
+                        count = count + 1
+                    end
                 end
+            end
+
+            if count > 0 then
+                targetPos = targetPos + repulsion
             end
         end
 
@@ -465,66 +557,45 @@ function Bot:ExecuteState()
             local blockersInPath = CountEnemiesInPath(botPos, attackGoalPos, enemyTeam, 200)
             local nearestEnemy, nearEnemyDist = GetNearestEnemy(self.ply, 500)
 
-            -- === CARRIER MOVEMENT: Natural weave instead of strict beeline ===
-            -- Sinusoidal lateral offset creates natural-looking S-curves toward goal
-            local weaveAmp = Bot.CARRIER_WEAVE_AMP
-            local weaveT = curTime * Bot.CARRIER_WEAVE_FREQ + self.jukePhase
-            local lateralOffset = math.sin(weaveT) * weaveAmp
+            -- === CARRIER STRATEGY: SPEED IS KING ===
+            -- User Request: Carrier needs to only care about going to goal.
+            -- Using a direct path is faster than weaving, unless we are actively blocked.
+            
+            targetPos = attackGoalPos
 
-            -- Increase weave when enemies are nearby (juking)
-            if IsValid(nearestEnemy) and nearEnemyDist < 400 then
-                lateralOffset = lateralOffset * 1.8
+            -- === INTELLIGENT PASSING (S-005) ===
+            -- If the path is blocked by multiple enemies, look for a pass.
+            if blockersInPath >= 2 and not self.throwState then
+                 -- If we are blocked, maybe we should pass?
+                 -- For now, we will try to run around them (Evasion) if no pass logic is ready
+                 -- (Pass logic would require switching state or setting throw target, which is complex here)
             end
 
-            -- Calculate perpendicular direction for the weave
-            local perpDir = Vector(-toGoalDir.y, toGoalDir.x, 0)
-            targetPos = attackGoalPos + perpDir * lateralOffset
-
-            -- When close to goal, reduce weave and beeline in
-            if distToGoal < 300 then
-                targetPos = attackGoalPos
-            end
-
-            -- === REACTIVE JUKE: Dodge enemy directly ahead ===
+            -- === REACTIVE EVASION ===
+            -- Only weave/dodge if an enemy is DIRECTLY in our face
             if IsValid(nearestEnemy) and nearEnemyDist < 250 then
                 local toEnemy = (nearestEnemy:GetPos() - botPos)
                 toEnemy.z = 0
                 local enemyDot = toGoalDir:Dot(toEnemy:GetNormalized())
 
-                if enemyDot > 0.7 then
-                    -- Enemy directly ahead — dodge laterally
+                if enemyDot > 0.8 then
+                    -- Enemy directly ahead blocking path — dodge laterally
                     local dodgeDir = Vector(-toEnemy.y, toEnemy.x, 0):GetNormalized()
-                    -- Pick consistent side based on bot index (avoids wiggling back and forth)
                     if bot:EntIndex() % 2 == 0 then dodgeDir = -dodgeDir end
-                    targetPos = botPos + toGoalDir * 200 + dodgeDir * 180
-                elseif enemyDot < -0.5 then
-                    -- Enemy behind — look back
-                    self.wantReload = true
+                    targetPos = botPos + toGoalDir * 300 + dodgeDir * 250
                 end
             end
 
-            -- === JUMP PAD ROUTING: Fly over blockers via launch pads ===
+            -- === JUMP PAD ROUTING ===
             if blockersInPath >= 1 and distToGoal > 500 and bot:OnGround() then
                 local padPos = FindBestJumpPad(botPos, attackGoalPos, 400)
                 if padPos and botPos:Distance(padPos) < 600 then
                     targetPos = padPos
                 end
             end
+            
+            -- Removed Body Wall Punch (Carrier should not stop to punch)
 
-            -- === BODY WALL PUNCH: Punch when an enemy is standing in our path blocking us ===
-            if botSpeed < Bot.BODYWALL_SPEED then
-                local wallCount = CountEnemiesInPath(botPos, botPos + toGoalDir * 150, enemyTeam, 80)
-                if wallCount >= 1 then
-                    if self.punchReactAt == 0 then
-                        self.punchReactAt = curTime + 0.25 + math.random() * 0.5
-                    elseif curTime >= self.punchReactAt then
-                        self.wantPunch = true
-                        self.punchReactAt = 0
-                    end
-                else
-                    self.punchReactAt = 0
-                end
-            end
 
             -- Hail Mary
             if distToGoal > 1500 and curTime > self.throwCooldown then
@@ -567,6 +638,18 @@ function Bot:ExecuteState()
                 if self.throwState == "hailmary" then
                     targetPos = botPos
                     self.targetPitch = -75
+                end
+
+                -- Play throw sound (Start of windup)
+                if not self.didThrowSound then
+                    self.didThrowSound = true
+                    -- Use model-specific voice set instead of generic/team based
+                    local voiceSet = Voice:GetVoiceSet(self.ply)
+                    local soundFile = table.Random(voiceSet.Throw)
+                    if soundFile then
+                        self.ply:EmitSound(soundFile)
+                    end
+                end
                 elseif IsValid(self.throwTarget) then
                     local matePos = self.throwTarget:GetPos()
                     local mateVel = self.throwTarget:GetVelocity()
@@ -593,7 +676,8 @@ function Bot:ExecuteState()
                         self.targetYaw = finalYaw + curveOffset
 
                         -- Pitch: high arc bounce pass (EFT style — aim steep, let it bounce)
-                        local loftPitch = math.Clamp(-55 - dist * 0.02, -75, -45)
+                        -- Changed from -55 max to -65 max to prevent hitting the ground
+                        local loftPitch = math.Clamp(-65 - dist * 0.02, -80, -45)
                         self.targetPitch = loftPitch
                     end
                 end
@@ -610,12 +694,12 @@ function Bot:ExecuteState()
             local rank, total = GetProximityRank(self, carrierPos)
             
             -- AGGRESSIVE DEFENSE (S-005, P-060)
-            -- If we are one of the closest 2 bots to the carrier, we BLITZ.
+            -- If we are one of the closest 3 bots to the carrier, we BLITZ.
             -- Everyone else tries to cut off lanes or cover the goal.
-            local shouldBlitz = (rank <= 2)
+            local shouldBlitz = (rank <= 3)
 
             -- If the carrier is close to the goal, everyone panics and blitzes
-            if defenseGoalPos and carrierPos:Distance(defenseGoalPos) < 800 then
+            if defenseGoalPos and carrierPos:Distance(defenseGoalPos) < 1000 then
                 shouldBlitz = true
             end
 
@@ -636,7 +720,7 @@ function Bot:ExecuteState()
                     local dist = carrierPos:Distance(defenseGoalPos)
                     
                     -- "Active Containment": Don't sit back. Close the gap, but stay in the lane.
-                    local containDist = math.Clamp(dist * 0.4, 200, 600)
+                    local containDist = math.Clamp(dist * 0.3, 150, 400) -- Tighter containment
                     targetPos = carrierPos + toGoal * containDist
                     
                     -- Spread out slightly so we don't bunch up with other defenders
@@ -658,32 +742,8 @@ function Bot:ExecuteState()
                 end
             end
 
-            -- Opportunistic Stomp
-            -- Only stomp if we are NOT in a critical charge/blitz
-            -- And only if the target is right in front of us (don't spin around)
-             if targetPos and not shouldBlitz and self.state ~= Bot.STATE_ATTACK then
-                local botVel = bot:GetVelocity():Length()
-                -- Only stop to punch if we are already slow, or if we are stuck (blockingCount > 0)
-                if botVel < 300 or (self.blockingCount or 0) > 0 then
-                    local myDir = (targetPos - botPos):GetNormalized()
-                    local fwd = bot:GetForward()
-                    
-                    for _, ply in ipairs(team.GetPlayers(enemyTeam)) do
-                        if IsValid(ply) and IsKnockedDown(ply) then
-                             local toDown = (ply:GetPos() - botPos)
-                             local distSq = toDown:LengthSqr()
-                             local downDir = toDown:GetNormalized()
-                             
-                             -- STRICT: Only punch if they are VERY close and IN FRONT
-                             if distSq < 3600 and fwd:Dot(downDir) > 0.8 then -- 60 units, 35 degree cone
-                                targetPos = ply:GetPos()
-                                self.wantPunch = true -- Trigger punch explicitly
-                                break
-                             end
-                        end
-                    end
-                end
-            end
+            -- Opportunistic Stomp REMOVED per user request (Stricter punch logic)
+            -- Bots will only punch if physically stuck or blocking (handled in CheckStuck/BodyWall)
         else
             self.state = Bot.STATE_CHASE_BALL
         end
@@ -706,12 +766,21 @@ function Bot:ExecuteState()
                  end
 
                  if not breaking then
-                     -- Formation
+                 -- Aggressive Escort: Run AHEAD of the carrier to block/clear path
+                 -- Or run to the side if close to goal to offer a pass option
+                 
+                 local goalDist = carrierPos:Distance(attackGoalPos or vector_origin)
+                 
+                 if goalDist < 500 then
+                     -- Offer pass option near goal (flank)
                      local flankAngle = (bot:EntIndex() % 2 == 0) and 45 or -45
                      local offsetDir = carrierDir:Angle()
                      offsetDir:RotateAroundAxis(Vector(0,0,1), flankAngle)
-                     local formationPos = carrierPos + offsetDir:Forward() * 250
-                     targetPos = formationPos
+                     targetPos = carrierPos + offsetDir:Forward() * 300
+                 else
+                     -- Run Interference: Position 300u ahead of carrier to absorb tackles
+                     targetPos = carrierPos + carrierDir * 350
+                 end
                  end
              else
                 self.state = Bot.STATE_CHASE_BALL
@@ -756,21 +825,23 @@ function Bot:CheckStuck()
     if speed < 50 and onGround then
         if self.stuckSince == 0 then
             self.stuckSince = CurTime()
-            self.stuckPunchAt = CurTime() + 0.5 + math.random() * 0.25
-        elseif CurTime() > self.stuckPunchAt then
-            -- Verify we are stuck against something destroyable or a player
+        elseif CurTime() > self.stuckSince + 0.5 then
+            -- If stuck for > 0.5s, check if it's a player blocking us
             local tr = util.TraceLine({
                 start = self.ply:GetPos() + Vector(0,0,40),
                 endpos = self.ply:GetPos() + self.ply:GetForward() * 50,
                 filter = self.ply
             })
             
-            if IsValid(tr.Entity) and (tr.Entity:IsPlayer() or tr.Entity:GetClass() == "func_breakable" or tr.Entity:GetClass() == "prop_physics") then
-                self.wantPunch = true
+            if IsValid(tr.Entity) and tr.Entity:IsPlayer() then
+                -- FRIENDLY FIRE CHECK: Only punch if they are NOT on our team
+                if tr.Entity:Team() ~= self.ply:Team() then
+                    self.wantPunch = true
+                end
             end
             
-            self.wantJump = true
-            self.stuckSince = 0
+            -- Reset timer to avoid spamming every tick (only punch every 0.5s if still stuck)
+            self.stuckSince = 0 
         end
     -- Body wall: moving slowly with enemy blocking ahead (teammates pass through)
     elseif speed < Bot.BODYWALL_SPEED and speed > 10 and onGround then
@@ -810,11 +881,26 @@ function Bot:CheckStuck()
     end
 end
 
---- Set targetYaw to face a world position.
+--- Set targetYaw to face a world position (using NavMesh if available).
 ---@param targetPos Vector Position to move towards
 function Bot:MoveTo(targetPos)
+    local waypoint = targetPos
+    
+    -- Try NavMesh Pathfinding
+    if navmesh.IsLoaded() and BotPathfinder then
+        local nextPoint = BotPathfinder.GetNextWaypoint(self.ply, targetPos)
+        if nextPoint then
+            waypoint = nextPoint
+            
+            -- If NavMesh indicates a jump is needed (vertical link), trigger it
+            if self.ply.PathJump then
+                self.wantJump = true
+            end
+        end
+    end
+
     local myPos = self.ply:GetPos()
-    local dir = (targetPos - myPos):GetNormalized()
+    local dir = (waypoint - myPos):GetNormalized()
     self.targetYaw = dir:Angle().y
 end
 
@@ -837,18 +923,19 @@ function Bot:DetectJumpableObstacle(currentYaw)
 
     local waistBlocked = false
     if trWaist.Hit then
-        -- Default to blocked if hit
         waistBlocked = true
-        -- If we hit a player, we don't count it as a static obstacle to vault
-        if IsValid(trWaist.Entity) and trWaist.Entity:IsPlayer() then
+        local ent = trWaist.Entity
+        if IsValid(ent) and (ent:IsPlayer() or ent:IsNPC() or ent:GetClass() == "prop_ball") then
             waistBlocked = false
         end
     end
 
-    -- 1b. Check Shin/Knee height (blocked?) - Catches low platforms
+    -- 1b. Check Shin/Knee height (blocked?)
+    -- Raised to 20 (Step Size is 18). If we hit something below 18, we just walk over it.
+    -- If we hit something at 20, it's too tall to walk, so we consider jumping.
     local trShin = util.TraceLine({
-        start = botPos + Vector(0,0,10),
-        endpos = botPos + Vector(0,0,10) + fwdDir * checkDist,
+        start = botPos + Vector(0,0,20),
+        endpos = botPos + Vector(0,0,20) + fwdDir * checkDist,
         filter = self.ply,
         mask = MASK_PLAYERSOLID
     })
@@ -856,7 +943,8 @@ function Bot:DetectJumpableObstacle(currentYaw)
     local shinBlocked = false
     if trShin.Hit then
         shinBlocked = true
-        if IsValid(trShin.Entity) and trShin.Entity:IsPlayer() then
+        local ent = trShin.Entity
+        if IsValid(ent) and (ent:IsPlayer() or ent:IsNPC() or ent:GetClass() == "prop_ball") then
             shinBlocked = false
         end
     end
@@ -893,17 +981,69 @@ function Bot:DetectJumpableObstacle(currentYaw)
     return true
 end
 
---- Apply wall avoidance to the current target yaw.
+--- Apply wall avoidance and The Curve (P-060) to the current target yaw.
 function Bot:ApplyMovement()
-    -- Try to vault obstacles first (Auto-Jump)
-    if self:DetectJumpableObstacle(self.targetYaw) then
+    -- Try to punch obstacles (NO JUMPING allowed per user request)
+    -- If something is blocking us at waist height or higher, PUNCH IT.
+    -- DetectJumpableObstacle logic removed to prevent jumping.
+    
+    local fwdDir = Angle(0, self.targetYaw, 0):Forward()
+    local botPos = self.ply:GetPos()
+
+    -- Check for punchable obstacle (player or prop) right in front
+    local trPunch = util.TraceLine({
+        start = botPos + Vector(0,0,36),
+        endpos = botPos + Vector(0,0,36) + fwdDir * 60,
+        filter = self.ply,
+        mask = MASK_PLAYERSOLID
+    })
+
+    if trPunch.Hit and IsValid(trPunch.Entity) then
+        -- Only punch if it's a player blocking us (user confirmed no breakables exist)
+        if trPunch.Entity:IsPlayer() then
+             -- CARRIER LOGIC: Never punch, just run around or pass
+             if self.HasBall then
+                 self.wantPunch = false
+             -- DEFENDER LOGIC: Reduced punch frequency (don't spam)
+             elseif math.random() < 0.1 then -- Reduced from instantaneous/constant
+                 self.wantPunch = true
+             end
+        end
+    end
+
+    -- Gap/Pit Detection (OR NavMesh Jump)
+    local shouldJump, avoidPit, gapOffset = self:AnalyzeFloor(self.targetYaw)
+    
+    if (shouldJump or self.wantJump) and self.ply:OnGround() then
+        -- Jump the gap (or NavMesh link)!
         self.wantJump = true
-        return -- Skip wall avoidance so we jump *at* the obstacle, not away from it
+        return -- Skip wall avoidance so we jump straight across
+    elseif avoidPit then
+        -- Turn away from death pit
+        self.targetYaw = self.targetYaw + gapOffset
+        return -- Skip wall avoidance to prioritize life
     end
 
     local wallAhead, wallFraction, wallOffset = self:DetectWalls(self.targetYaw)
     if wallAhead then
         self.targetYaw = self.targetYaw + wallOffset
+    else
+        -- MANIFEST P-060 (The Curve): If grounded and fast, curve slightly into head-ons
+        -- This mimics high-level players turning 1-3 degrees to gain speed (355+)
+        if self.ply:OnGround() and GetBotSpeed(self.ply) > 280 then
+             -- No wall ahead: apply curve bias
+             -- We want to maintain a slight turn (1-2 degrees per tick) to build speed
+             -- This bias is randomized per bot (left or right preference)
+             if not self.CurveBias then self.CurveBias = (math.random() > 0.5 and 1 or -1) end
+             
+             -- Only apply if we are generally moving straight (not already turning hard)
+             local currentYaw = self.ply:EyeAngles().y
+             local diff = math.AngleDifference(self.targetYaw, currentYaw)
+             
+             if math.abs(diff) < 10 then
+                 self.targetYaw = self.targetYaw + self.CurveBias * 5 
+             end
+        end
     end
 end
 
@@ -951,8 +1091,24 @@ function Bot:BuildCommand(cmd)
         newYaw = math.ApproachAngle(currentYaw, self.targetYaw, 12)
     else
         local diff = math.AngleDifference(self.targetYaw, currentYaw)
-        local turnRate = Bot.TURN_RATE_CRUISE
-        if math.abs(diff) > 20 then turnRate = Bot.TURN_RATE_FIRM end
+        local absDiff = math.abs(diff)
+        local speed = GetBotSpeed(self.ply)
+        
+        -- MOMENTUM TURN (P-060 Refined):
+        -- If sprinting > 280u/s, cap turn rate to prevent physics braking (GMod friction).
+        -- Unless the target is BEHIND us (> 90 deg), then we must brake and turn.
+        local turnRate
+        
+        if speed > 280 and absDiff < 90 then
+            -- Wide arc to maintain speed (max ~3 degrees/tick)
+            -- This forces the bot to run a curve instead of snapping
+            turnRate = 3.0 
+        else
+            -- Normal turning
+            turnRate = Bot.TURN_RATE_CRUISE
+            if absDiff > 20 then turnRate = Bot.TURN_RATE_FIRM end
+        end
+        
         newYaw = math.ApproachAngle(currentYaw, self.targetYaw, turnRate)
     end
 
@@ -1090,11 +1246,12 @@ end
 -- PIT DETECTION (drop/trigger_hurt avoidance)
 -- ============================================================================
 
---- Detect pits (drops or kill triggers) ahead of the bot.
+--- Detect gaps/pits in the floor ahead and decide if we should jump or turn.
 ---@param currentYaw number Current facing yaw
----@return boolean pitAhead True if a pit was detected
----@return number offsetYaw Suggested yaw offset to avoid the pit
-function Bot:DetectPits(currentYaw)
+---@return boolean shouldJump True if we should jump to clear a gap
+---@return boolean avoidPit True if we need to turn to avoid a death pit
+---@return number offsetYaw Suggested turn offset
+function Bot:AnalyzeFloor(currentYaw)
     local botPos = self.ply:GetPos()
 
     -- Check if ball is below us (safe to drop)
@@ -1102,26 +1259,44 @@ function Bot:DetectPits(currentYaw)
     if IsValid(ball) then
         local ballZ = ball:GetPos().z
         if ballZ < botPos.z - 100 then
-            return false, 0
+            return false, false, 0
         end
     end
 
     local fwdAng = Angle(0, currentYaw, 0)
     local fwdDir = fwdAng:Forward()
-    local lookDist = 350
-    local dropLimit = 200
+    local lookDist = 250 -- Look ahead distance
+    local dropLimit = 200 -- Max drop height before considered a "pit"
 
-    local function ScanPit(dir)
+    local function ScanFloor(dir)
         local scanPos = botPos + dir * lookDist
 
+        -- Trace down to see if there is floor
         local trDown = util.TraceLine({
             start = scanPos + Vector(0,0,10),
             endpos = scanPos - Vector(0,0,dropLimit),
             mask = MASK_SOLID_BRUSHONLY
         })
 
-        if not trDown.Hit then return true end
+        -- If we hit nothing, it's a gap/pit
+        if not trDown.Hit then 
+            -- Now check if there is land FARTHER clearly (jumpable gap)
+            local trJumpLand = util.TraceLine({
+                start = botPos + dir * (lookDist + 200), -- 450 units total
+                endpos = botPos + dir * (lookDist + 200) - Vector(0,0,dropLimit),
+                mask = MASK_SOLID_BRUSHONLY
+            })
+            
+            if trJumpLand.Hit then
+                -- Gap with landing spot! JUMP!
+                return "GAP_JUMPABLE"
+            else
+                -- Endless void or too far. AVOID.
+                return "PIT"
+            end
+        end
 
+        -- Check for kill triggers
         local trTrigger = util.TraceHull({
             start = scanPos + Vector(0,0,10),
             endpos = scanPos - Vector(0,0,dropLimit),
@@ -1133,24 +1308,26 @@ function Bot:DetectPits(currentYaw)
         if trTrigger.Hit and IsValid(trTrigger.Entity) then
             local cls = trTrigger.Entity:GetClass()
             if cls == "trigger_hurt" or cls == "trigger_ballreset" or cls == "trigger_kill" then
-                return true
+                return "PIT"
             end
         end
 
-        return false
+        return "SAFE"
     end
 
-    if ScanPit(fwdDir) then
+    local status = ScanFloor(fwdDir)
+    
+    if status == "GAP_JUMPABLE" then
+        return true, false, 0 -- JUMP!
+    elseif status == "PIT" then
+        -- Find safe turn
         local leftAng = Angle(0, currentYaw + 45, 0)
         local rightAng = Angle(0, currentYaw - 45, 0)
 
-        local safeLeft = not ScanPit(leftAng:Forward())
-        local safeRight = not ScanPit(rightAng:Forward())
-
-        if safeLeft then return true, 45
-        elseif safeRight then return true, -45
-        else return true, 180 end
+        if ScanFloor(leftAng:Forward()) == "SAFE" then return false, true, 45
+        elseif ScanFloor(rightAng:Forward()) == "SAFE" then return false, true, -45
+        else return false, true, 180 end
     end
 
-    return false, 0
+    return false, false, 0
 end

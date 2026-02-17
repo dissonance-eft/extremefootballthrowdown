@@ -67,10 +67,20 @@ function PANEL:Init()
 end
 
 function PANEL:Think()
-	-- Update player lists
-	self.RedPlayers = team.GetPlayers(TEAM_RED)
-	self.BluePlayers = team.GetPlayers(TEAM_BLUE)
-	self.Spectators = team.GetPlayers(TEAM_SPECTATOR)
+	-- Update player lists (Filter out bots per User Request)
+	self.RedPlayers = {}
+	self.BluePlayers = {}
+	self.Spectators = {}
+
+	for _, ply in ipairs(team.GetPlayers(TEAM_RED)) do
+		if not ply:IsBot() then table.insert(self.RedPlayers, ply) end
+	end
+	for _, ply in ipairs(team.GetPlayers(TEAM_BLUE)) do
+		if not ply:IsBot() then table.insert(self.BluePlayers, ply) end
+	end
+	for _, ply in ipairs(team.GetPlayers(TEAM_SPECTATOR)) do
+		if not ply:IsBot() then table.insert(self.Spectators, ply) end
+	end
 end
 
 function PANEL:OnMouseWheeled(delta)

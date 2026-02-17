@@ -361,7 +361,7 @@ function GameManager:OnTeamScored(teamid, hitter, points, istouch)
     if hitter and hitter:IsValid() then
         if hitter:IsPlayer() then
             hittername = hitter:Name()
-            hitter:AddFrags(math.ceil(math.Clamp(#player.GetAll() / 10, 0.05, 1) * GM.PointsForScoring))
+            -- Points removed per user request: hitter:AddFrags(...)
             hitter:SetNWInt("Goals", hitter:GetNWInt("Goals", 0) + 1)
         else
             hittername = hitter:GetClass()

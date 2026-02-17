@@ -1,108 +1,35 @@
-///////////////////////////////////////////////////////////////////////////////////
-// NoXiousNet EFT FGD                                                            //
-// If there are any bugs with this file, or any additions that need to be made   //
-// make a post at: http://www.noxiousnet.com/forums/index.php?topic=14910        //
-///////////////////////////////////////////////////////////////////////////////////
-
 @include "base.fgd"
 @include "halflife2.fgd"
 @include "hl2mp.fgd"
-
-@BaseClass base(Targetname) = NoXToggle
-[
-	// Keys
-	enabled(choices) : "Start Enabled?" : 1 : "Does the entity start enabled?" =
-	[
-		0: "No"
-		1: "Yes"
-	]
-	// Inputs
-	input setenabled(integer)   : "0 for off, 1 for on."
-]
 
 @BaseClass base(Targetname, Parentname) = EFTGoal
 [
 	// Keys
 	teamid(choices) : "Team" : 1 : "The team's goal point." =
 	[
-		1 : "Red"
-		2 : "Blue"
+		1 : "Red Rhinos"
+		2 : "Blue Bulls"
 	]
 	points(integer) : "Points Per Goal" : 1 : "Number of points that is given when scoring."
 ]
 
-@PointClass base(Angles) studio("models/editor/playerstart.mdl") color( 255 0 0 )   = info_player_red : "EFT: People on team red spawn here."
+@PointClass base(Angles) studio("models/editor/playerstart.mdl") color( 255 0 0 )   = info_player_red : "EFT: Red Team Spawn."
 [
 ]
 
-@PointClass = logic_norandomweapons : "EFT: Stops random weapons from being dropped at spawnpoints."
+@PointClass base(Angles) studio("models/editor/playerstart.mdl") color( 0 0 255 )  = info_player_blue : "EFT: Blue Team Spawn."
 [
 ]
 
-@PointClass base(Angles) studio("models/editor/playerstart.mdl") color( 255 255 255 )  = info_player_spectator : "EFT: People who want to spectate spawn here."
+@SolidClass base(Targetname, Parentname) = trigger_ballreset : "EFT: Resets ball to center. Use for Out of Bounds / Hazards."
 [
 ]
 
-@PointClass base(Angles) studio("models/editor/playerstart.mdl") color( 0 0 255 )  = info_player_blue : "EFT: People on team green spawn here."
-[
-]
-
-@PointClass base(Targetname) studio("models/props_c17/oildrum001_explosive.mdl") color( 255 255 255 )   = prop_carry_barrel : "EFT: Spawns a Nitro Barrel."
-[
-]
-
-@PointClass base(Targetname) studio("models/props_docks/dock01_pole01a_128.mdl") color( 255 255 255 )   = prop_carry_bigpole : "EFT: Spawns a Big Pole."
-[
-]
-
-@PointClass base(Targetname) studio("models/props_junk/garbage_glassbottle001a.mdl") color( 255 255 255 )   = prop_carry_boozebottle : "EFT: Spawns a Booze Bottle."
-[
-]
-
-@PointClass base(Targetname) studio("models/props_vehicles/car002a.mdl") color( 255 255 255 )   = prop_carry_car : "EFT: Spawns a Clown Car."
-[
-]
-
-@PointClass base(Angles, Targetname) studio("models/props_junk/watermelon01.mdl") color( 255 255 255 )   = prop_carry_melon : "EFT: Spawns a Melon."
-[
-]
-
-@PointClass base(Targetname) studio("models/weapons/w_rocket_launcher.mdl") color( 255 255 255 )   = prop_carry_melondriver : "EFT: Spawns a Melon Driver."
-[
-]
-
-@PointClass base(Targetname) studio("models/props_c17/trappropeller_engine.mdl") color( 255 255 255 )   = prop_carry_mowertrap : "EFT: Spawns a Mower Trap."
-[
-]
-
-@PointClass base(Targetname) studio("models/props_phx/amraam.mdl") color( 255 255 255 )   = prop_carry_tomahawk : "EFT: Spawns a Tomahawk Missle."
-[
-]
-
-@PointClass base(Targetname) studio("models/props_trainstation/trashcan_indoor001b.mdl") color( 255 255 255 )   = prop_carry_trashbin : "EFT: Spawns a Trash Bin."
-[
-]
-
-@PointClass base(Targetname) studio("models/weapons/w_stunbaton.mdl") color( 128 128 255 )   = prop_carry_beatingstick : "EFT: Spawns a Beatdown Stick."
-[
-]
-@PointClass base(Targetname) studio("models/weapons/w_stunbaton.mdl") color( 255 128 128 )   = prop_carry_arcanewand : "EFT: Spawns an Arcane Wand."
-[
-]
-
-@PointClass base(Angles,EFTGoal) = prop_goal : "EFT: Where the boring, basic goal spawns."
-[
-]
-
-@SolidClass base(Targetname, Parentname, NoXToggle) = trigger_ballreset : "EFT: Change how the player should score with the ball."
-[
-]
-
-@PointClass base(Targetname, NoXToggle) = logic_teamscore : "EFT: Called when a chosen team scores a point."
+@PointClass base(Targetname) = logic_teamscore : "EFT: Score Logic System."
 [
 	// Inputs
 	input getscore(void)        : "Fires outputs containing the scores of each team"
-	
+
 	// Outputs
 	output onscore(void)        : "Called when anyone scores."
 	output onredscore(void)     : "Called when Red team scores."
@@ -111,7 +38,7 @@
 	output ongetbluescore(void) : "Called and outputs blue score when getscore input is used."
 ]
 
-@PointClass base(Targetname,Angles,Parentname) studio("models/roller.mdl") = prop_ball : "EFT: Where the ball spawns."
+@PointClass base(Targetname,Angles,Parentname) studio("models/roller.mdl") = prop_ball : "EFT: Main Ball Spawner. Place at map center."
 [
 	// Outputs
 	output onreturnhome(void)     : "Called when the ball returns to the spawn position."
@@ -126,7 +53,7 @@
 	output onpickedupbyblue(void) : "Same as onpickedup but for blue only."
 ]
 
-@PointClass base(Targetname) = env_teamsound : "EFT: Used to play sound when activated (can be either a sound file or in the format soundfile,pitch,volume)."
+@PointClass base(Targetname) = env_teamsound : "EFT: Play sounds to specific teams."
 [
 	// Inputs
 	input playtoall(string)        : "Plays the specified sound to all players including spectators."
@@ -135,7 +62,11 @@
 	input playtospectators(string) : "Plays the specified sound to spectators only."
 ]
 
-@SolidClass base(EFTGoal) = trigger_goal : "EFT: Change how the player should score with the ball."
+@PointClass base(Angles,EFTGoal) = prop_goal : "EFT: Where the basic goal spawns."
+[
+]
+
+@SolidClass base(EFTGoal) = trigger_goal : "EFT: Goal Volume. Scoring area."
 [
 	// Keys
 	scoretype(choices) : "Score Type" : 1 : "EFT: Sets the score type." =
@@ -145,15 +76,15 @@
 		2 : "Throw Only"
 		3 : "Touch And Throw"
 	]
-	
+
 	// Inputs
 	input setscoretype(integer) : "Change the score type of this entity."
-	
+
 	// Outputs
 	output onscore(void)        : "Called when this goal gets scored on."
 ]
 
-@SolidClass base(Targetname, Parentname, NoXToggle) = trigger_abspush : "EFT: Push mechanic for the gamemode."
+@SolidClass base(Targetname, Parentname) = trigger_jumppad : "EFT: Jump Pad / AbsPush. Adds velocity directly."
 [
 	// Keys
 	knockdown(choices) : "Knock Down" : 1 : "Triggers a ragdoll knockdown or not." =
@@ -192,7 +123,7 @@
 		0 : "No"
 	]
 	pushvelocity(string) : "Push Velocity" : "0 0 0" : "Should be either a vector or a number depending on what Push from Origin is set as."
-	
+
 	// Inputs
 	input setstarttouchonly(integer)   : "Choose if this entity is activated only on starting touch."
 	input setoverridevelocity(integer) : "Choose if this entity overrides the object velocity."
@@ -202,8 +133,8 @@
 	input setpushphysobjects(integer)  : "Choose if this entity pushes any object."
 	input setpushvelocity(string)      : "Set a vector or number for the velocity."
 ]
-	
-@SolidClass base(Targetname, Parentname, NoXToggle) = trigger_knockdown : "EFT: Knockdown trigger for the gamemode."
+
+@SolidClass base(Targetname, Parentname) = trigger_knockdown : "EFT: Knockdown trigger."
 [
 	// Keys
 	starttouchonly(choices) : "Activate on Touch Only" : 1 : "Only trigger when object enters the field." =
@@ -216,12 +147,12 @@
 	// Inputs
 	input  setstarttouchonly(integer)  : "Choose if this entity is activated only on starting touch."
 	input  setknockdowntime(float)     : "Set the time the player is knocked down for."
-	
+
 	// Outputs
 	output onknockdown(void)          : "Activates when activator is knocked down."
 ]
 
-@SolidClass base(Targetname, Parentname, NoXToggle) = trigger_powerup : "EFT: Gives the ball a powerup when entering the volume."
+@SolidClass base(Targetname, Parentname) = trigger_powerup : "EFT: Gives the ball a powerup when entering the volume."
 [
 	// Keys
 	powerup(choices) : "Powerup" : "speedball" : "Which powerup to give the ball." =
@@ -234,8 +165,12 @@
 		"iceball"    : "Ice Ball"
 	]
 	poweruptime(integer) : "Powerup Time" : 20 : "How long the ball is powered up."
-	
+
 	// Inputs
 	input setpoweruptime(integer)  : "Set the powerup time."
 	input setpowerup(string)       : "Set which powerup the ball has."
+]
+
+@PointClass base(Angles) studio("models/editor/playerstart.mdl") color( 255 255 255 ) = info_observer_point : "EFT: Observer Camera Point."
+[
 ]
