@@ -1,6 +1,8 @@
 if SERVER or GetLuaAnimations ~= nil then return end
 
-include("sh_boneanimlib.lua")
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Animation)
+-- gamemode/animationsapi/cl_boneanimlib.lua
 include("sh_mocap.lua")
 
 local ANIMATIONFADEOUTTIME = 0.125

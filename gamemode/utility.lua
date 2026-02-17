@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 /*---------------------------------------------------------
    Name: UTIL_SpawnAllPlayers
    Desc: Respawn all non-spectators, providing they are allowed to spawn. 

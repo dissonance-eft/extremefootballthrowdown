@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-010 (Possession - Ball Types)
 STATE.Name = "Hold the ball to score!!"
 
 if SERVER then

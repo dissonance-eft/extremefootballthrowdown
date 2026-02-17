@@ -1,4 +1,7 @@
 local meta = FindMetaTable("Player")
+/// MANIFEST LINKS:
+/// Mechanics: M-110 (Charge - Accessors)
+/// Principles: P-030 (Role Fluidity), P-050 (Movement Constraints)
 if not meta then return end
 
 local IN_FORWARD = IN_FORWARD

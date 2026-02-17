@@ -12,6 +12,8 @@ local function CollideCallback(oldparticle, hitpos, hitnormal)
 end
 
 local vecGravity = Vector(0, 0, -500)
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Feedback), P-100 (Hype)
 function EFFECT:Init(data)
 	local ent = data:GetEntity()
 	if not ent:IsValid() then return end
@@ -71,6 +73,7 @@ end
 function EFFECT:Think()
 	return false
 end
+
 
 function EFFECT:Render()
 end

@@ -1,4 +1,6 @@
 -- gamemode/lib/event.lua
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 -- Typed event/delegate system for GMod → s&box parity
 -- See lib/SBOX_MAPPING.lua for full porting reference.
 --

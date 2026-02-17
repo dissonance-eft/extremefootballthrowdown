@@ -1,4 +1,6 @@
 local PANEL = {}
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - UI), C-009 (Status Info)
 
 surface.CreateLegacyFont( "Trebuchet MS", 32, 800, true, false, "FHUDElement" )
 

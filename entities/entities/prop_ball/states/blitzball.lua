@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-010 (Possession - Ball Types)
 STATE.Name = "Blitz Ball"
 
 --STATE.NoGravityTime = 0.25

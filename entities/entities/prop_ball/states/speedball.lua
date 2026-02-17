@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-010 (Possession - Ball Types)
 STATE.Name = "Speed Ball"
 
 if SERVER then

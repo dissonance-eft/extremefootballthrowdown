@@ -1,4 +1,7 @@
 AddCSLuaFile("cl_init.lua")
+/// MANIFEST LINKS:
+/// Mechanics: M-140 (Possession Base), M-150 (Fumble Physics)
+/// Principles: P-080 (Ball Readability)
 AddCSLuaFile("shared.lua")
 
 include("shared.lua")
@@ -146,6 +149,17 @@ function ENT:Touch(ent)
 	and ent:CallStateFunction("CanPickup", self) and (self:GetLastCarrier() ~= ent or CurTime() > (self.m_PickupImmunity or 0))
 	and (ent:Team() ~= self:GetLastCarrierTeam() or CurTime() > (self.m_TeamPickupImmunity or 0)) then
 		if team.HasPlayers(ent:Team() == TEAM_RED and TEAM_BLUE or TEAM_RED) or game.SinglePlayer() or game.MaxPlayers() == 1 then
+			if ent:IsValid() and ent:IsPlayer() then
+				if RecordMatchEvent then
+					RecordMatchEvent("possession_gain", ent)
+				end
+			elseif self.LastCarrierTeam ~= 0 and not ent:IsValid() then
+				if RecordMatchEvent then
+                    -- If we are losing possession (ent is invalid)
+                    RecordMatchEvent("possession_loss", self:GetCarrier())
+                end
+				-- Fumble or drop logic could go here, but usually handled by Drop()
+			end
 			self:SetCarrier(ent)
 			ent:AddFrags(1)
 

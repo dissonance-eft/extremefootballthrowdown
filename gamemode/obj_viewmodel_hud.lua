@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - UI)
 -- gamemode/obj_viewmodel_hud.lua
 -- HUD ViewModel (MVVM pattern) for EFT
 -- Separates HUD data logic from rendering for s&box parity
@@ -23,6 +25,7 @@ end
 function HUDViewModel:GetRoundTimer()
 	local roundEnds = GetGlobalFloat("RoundEndsAt", 0)
 	if roundEnds <= 0 then return "" end
+
 
 	local time = math.max(0, roundEnds - CurTime())
 	local minutes = math.floor(time / 60)

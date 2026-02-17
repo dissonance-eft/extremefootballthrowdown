@@ -1,4 +1,6 @@
--- lib/SBOX_MAPPING.lua
+-- gamemode/lib/SBOX_MAPPING.lua
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 -- ============================================================================
 -- S&BOX PORTING REFERENCE — DO NOT INCLUDE IN GAMEMODE
 -- This file documents the GMod Lua → s&box C# mapping for the OOP layer.

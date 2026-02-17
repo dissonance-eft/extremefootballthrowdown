@@ -1,4 +1,7 @@
 
+/// MANIFEST LINKS:
+/// Mechanics: M-180 (Scoring - Celebrations)
+/// Principles: P-100 (Reversals/Hype), C-001 (Continuous Contest)
 -- Round result and InRound state are owned by GameManager (single writer).
 -- These GM:* wrappers delegate to GAMEMANAGER for backward compat with hook.Add callers.
 function GM:SetRoundWinner( ply, resulttext ) GAMEMANAGER:SetRoundWinner(ply, resulttext) end
@@ -100,9 +103,82 @@ end
 //
 // Internal, override OnRoundStart if you want to do stuff here
 //
+//
+// Internal, override OnRoundStart if you want to do stuff here
+//
 function GM:RoundStart()
 	GAMEMANAGER:RoundStart()
+    self.CountDownPlayed = {}
 end
+
+function GM:OnTimerTick()
+    if not self:InRound() then return end
+    
+    local endTime = GetGlobalFloat("RoundEndsAt", 0)
+    local timeLeft = endTime - CurTime()
+    
+    -- Overwatch-style Countdown (10s) - End of Round
+    if timeLeft <= 10 and timeLeft > 0 then
+        local sec = math.ceil(timeLeft)
+        if not self.CountDownPlayed then self.CountDownPlayed = {} end
+        
+        if not self.CountDownPlayed[sec] then
+            self.CountDownPlayed[sec] = true
+            local soundPath = "eft/announcer/" .. sec .. ".wav"
+            net.Start("eft_localsound")
+                net.WriteString(soundPath)
+                net.WriteFloat(100)
+                net.WriteFloat(1.0)
+            net.Broadcast()
+        end
+    end
+
+    -- 30s and 1m Warnings
+    if timeLeft <= 30 and timeLeft > 29 and not self.Warn30Played then
+        self.Warn30Played = true
+        net.Start("eft_localsound")
+            net.WriteString("eft/announcer/30s.wav")
+            net.WriteFloat(100)
+            net.WriteFloat(1.0)
+        net.Broadcast()
+    elseif timeLeft <= 60 and timeLeft > 59 and not self.Warn60Played then
+        self.Warn60Played = true
+        net.Start("eft_localsound")
+            net.WriteString("eft/announcer/1m.wav")
+            net.WriteFloat(100)
+            net.WriteFloat(1.0)
+        net.Broadcast()
+    end
+
+    -- PreRound Countdown (Starts at RoundStartTime)
+    local startTime = GetGlobalFloat("RoundStartTime", 0)
+    local timeUntilStart = startTime - CurTime()
+    
+    if timeUntilStart <= 5 and timeUntilStart > 0 then
+        local sec = math.ceil(timeUntilStart)
+        if not self.PreRoundCountDownPlayed then self.PreRoundCountDownPlayed = {} end
+        
+        if not self.PreRoundCountDownPlayed[sec] then
+            self.PreRoundCountDownPlayed[sec] = true
+            -- Reuse the same 1-10 sounds
+            local soundPath = "eft/announcer/" .. sec .. ".wav"
+             net.Start("eft_localsound")
+                net.WriteString(soundPath)
+                net.WriteFloat(100)
+                net.WriteFloat(1.0)
+            net.Broadcast()
+        end
+    end
+end
+
+function GM:RoundStart()
+	GAMEMANAGER:RoundStart()
+    self.CountDownPlayed = {}
+    self.PreRoundCountDownPlayed = {}
+    self.Warn30Played = false
+    self.Warn60Played = false
+end
+hook.Add("Tick", "EFT_RoundTimerTick", function() if GAMEMODE and GAMEMODE.OnTimerTick then GAMEMODE:OnTimerTick() end end)
 
 // Result formatting is now owned by GameManager
 function GM:ProcessResultText( result, resulttext )

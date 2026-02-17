@@ -1,4 +1,9 @@
 ENT.Type = "brush"
+/// MANIFEST LINKS:
+/// Mechanics: M-180 (Scoring), M-170 (Goal Reset)
+/// Events: E-270 (GoalScored), E-240 (BallReset)
+/// Principles: C-004 (Last-Second Intervention), P-100 (Reversals/Hype)
+/// Scenarios: S-010 (Last-Second Touchdown Stop)
 
 SCORETYPE_TOUCH = 1
 SCORETYPE_THROW = 2

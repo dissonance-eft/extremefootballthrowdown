@@ -1,10 +1,15 @@
 include("sh_globals.lua")
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity), C-001 (Continuous Contest)
 include("shared.lua")
 
 -- OOP Compatibility Layer (s&box port prep)
-include("lib/promise.lua")
 include("lib/class.lua")
-include("obj_network.lua")
+include("lib/promise.lua")
+include("lib/event.lua")
+
+-- Manifest Tools
+include("cl_manifest_debug.lua")
 include("obj_player.lua")
 include("obj_ball.lua")
 include("obj_gamemanager.lua")

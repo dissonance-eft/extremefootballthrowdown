@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-010 (Water)
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 

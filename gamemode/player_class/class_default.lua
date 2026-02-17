@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-010 (Class System)
 local CLASS = {}
 
 CLASS.DisplayName = "Player"

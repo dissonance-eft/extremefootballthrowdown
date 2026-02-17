@@ -15,6 +15,8 @@ local function Register(filename)
 
 	include("states/"..filename)
 	AddCSLuaFile("states/"..filename)
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 
 	STATE.FileName = statename
 

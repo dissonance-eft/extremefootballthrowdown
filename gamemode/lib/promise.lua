@@ -1,4 +1,6 @@
 -- gamemode/lib/promise.lua
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 -- Lightweight Promise/async for GMod → s&box parity
 -- See lib/SBOX_MAPPING.lua for full porting reference.
 --

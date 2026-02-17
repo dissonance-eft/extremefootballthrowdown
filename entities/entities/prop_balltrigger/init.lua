@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-010 (Ball Types)
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 

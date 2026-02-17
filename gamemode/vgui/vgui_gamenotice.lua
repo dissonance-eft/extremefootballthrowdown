@@ -9,6 +9,8 @@ local hud_deathnotice_limit = CreateClientConVar( "hud_deathnotice_limit", "5", 
 ]]
 
 local PANEL = {}
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - UI), C-009 (Status Info)
 
 Derma_Hook( PANEL, 	"Paint", 				"Paint", 	"GameNotice" )
 Derma_Hook( PANEL, 	"ApplySchemeSettings", 	"Scheme", 	"GameNotice" )

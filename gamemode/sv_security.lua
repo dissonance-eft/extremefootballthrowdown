@@ -1,4 +1,6 @@
 -- gamemode/sv_security.lua
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Anti-Cheat/Exploit)
 -- Backdoor / Malicious Code Scanner for EFT
 -- Embedded console command that scans Lua files for suspicious patterns.
 --

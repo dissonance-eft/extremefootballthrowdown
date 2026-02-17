@@ -1,5 +1,7 @@
 --[[EFFECT.RefractLifeTime = 0.5
-EFFECT.LifeTime = 0.75]]
+EFFECT.LifeTime = 1
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Feedback), P-100 (Hype)0.75]]
 
 function EFFECT:Init(data)
 	--self.Entity:SetRenderBounds(Vector(-256, -256, -256), Vector(256, 256, 256))

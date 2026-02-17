@@ -1,4 +1,6 @@
 -- gamemode/lib/class.lua
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 -- Standardized OOP for GMod → s&box parity
 -- Maps to: C# class inheritance, virtual methods, is/as operators
 --

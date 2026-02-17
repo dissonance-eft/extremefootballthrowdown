@@ -1,4 +1,8 @@
 
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - UI)
+local PANEL = {}
+
 local function CreateLeftNotify()
 
 	local x, y = chat.GetChatBoxPos()

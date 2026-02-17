@@ -1,4 +1,7 @@
 STATE.Time = 7
+/// MANIFEST LINKS:
+/// Mechanics: M-130 (Power Struggle), M-110 (Collision Resolution)
+/// Principles: P-070 (Intentionality), C-009 (Commitment Under Uncertainty)
 
 STATE.PowerPerKey = 0.03
 

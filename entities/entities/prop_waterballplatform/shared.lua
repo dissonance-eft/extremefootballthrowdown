@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-010 (Water)
 ENT.Type = "anim"
 
 AccessorFuncDT(ENT, "Player", "Entity", 0)

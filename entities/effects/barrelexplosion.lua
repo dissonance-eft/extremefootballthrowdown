@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-070 (Visual Effects)
 function EFFECT:Init(data)
 	local normal = data:GetNormal()
 	local pos = data:GetOrigin()

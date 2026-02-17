@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-030 (Tactics - Traps)
 ENT.Type = "brush"
 
 AccessorFunc(ENT, "m_Enabled", "Enabled", FORCE_BOOL)

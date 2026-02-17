@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-030 (Tactics - Powerups)
 ENT.Type = "brush"
 
 ENT.m_Enabled = true

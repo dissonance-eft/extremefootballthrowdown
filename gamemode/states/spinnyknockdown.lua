@@ -1,4 +1,7 @@
 STATE.Time = 0.9
+/// MANIFEST LINKS:
+/// Mechanics: M-120 (Knockdown Recovery - Spin)
+/// Principles: P-020 (Interaction Frequency)
 
 function STATE:Started(pl, oldstate)
 	pl:Freeze(true)

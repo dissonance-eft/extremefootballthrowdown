@@ -14,6 +14,8 @@ local SPEED_RUN_SQR = SPEED_RUN_SQR
 
 function GM:HandlePlayerSwimming(pl, velocity)
 	if not pl:IsSwimming() then return false end
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 
 	if velocity:LengthSqr() > 100 then
 		pl.CalcIdeal = ACT_HL2MP_SWIM

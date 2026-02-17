@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Feedback), P-100 (Hype)
 function EFFECT:Init(data)
 	local pos = data:GetOrigin()
 
@@ -46,6 +48,7 @@ end
 function EFFECT:Think()
 	return false
 end
+
 
 function EFFECT:Render()
 end

@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-140 (Possession Base)
 ENT.Type = "anim"
 ENT.RenderGroup = RENDERGROUP_TRANSLUCENT
 

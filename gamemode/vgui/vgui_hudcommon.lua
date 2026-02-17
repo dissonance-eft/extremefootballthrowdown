@@ -1,4 +1,6 @@
 local PANEL = {}
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - UI), C-009 (Status Info)
 AccessorFunc( PANEL, "m_Items", 	"Items" )
 AccessorFunc( PANEL, "m_Horizontal", 	"Horizontal" )
 AccessorFunc( PANEL, "m_Spacing", 		"Spacing" )

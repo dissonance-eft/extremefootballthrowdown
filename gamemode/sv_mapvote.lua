@@ -1,4 +1,6 @@
 -- gamemode/sv_mapvote.lua
+/// MANIFEST LINKS:
+/// Principles: C-007 (Migrating Conflict Zone - Map Choice)
 -- Map Vote System for EFT (server side)
 -- Replaces the basic Fretta text-list vote with a modern thumbnail-enabled system.
 -- Hooks into the existing EndOfGame → StartGamemodeVote flow.
@@ -175,9 +177,11 @@ function MapVote.Start(length, allowCurrent, limit, prefixes, callback)
         end
 
         if matched then
-            voteMaps[#voteMaps + 1] = mapName
+            if SERVER then
+                voteMaps[#voteMaps + 1] = mapName
 
-            if #voteMaps >= limit then break end
+                if #voteMaps >= limit then break end
+            end
         end
     end
 

@@ -11,7 +11,7 @@
 		"1"	"xft_"
 		"2"	"eft"
 	}
-	"description"		"The only football gamemode you will ever want to play."
+	"description"		"Continuous-play physics-based arena sport. Rocket League where you ARE the car."
 
 	"author_name"	"William 'JetBoom' Moodhe"
 	"author_email"	"williammoodhe@gmail.com"

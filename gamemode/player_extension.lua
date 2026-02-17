@@ -1,4 +1,7 @@
 
+/// MANIFEST LINKS:
+/// Mechanics: M-110 (Charge - Accessors)
+/// Principles: P-030 (Role Fluidity), P-050 (Movement Constraints)
 local meta = FindMetaTable( "Player" )
 if (!meta) then return end 
 

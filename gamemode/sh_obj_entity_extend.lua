@@ -1,4 +1,6 @@
 local meta = FindMetaTable("Entity")
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Entity outlines/halos)
 if not meta then return end
 
 function meta:CollisionRulesChanged()

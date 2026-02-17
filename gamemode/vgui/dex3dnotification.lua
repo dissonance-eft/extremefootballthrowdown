@@ -4,6 +4,8 @@ local DefaultFont = "eft_3dnotice"
 local DefaultFontEntity = "eft_3dnotice"
 
 local PANEL  = {}
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - UI), C-009 (Status Info)
 
 function PANEL:Init()
 	self:SetPaintedManually(true)

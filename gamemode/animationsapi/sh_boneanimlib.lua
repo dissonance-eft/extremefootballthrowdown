@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Animation), P-080 (Readability - Animation)
 --[[
 
 Bone Animations Library

@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-140 (Possession Base)
 include("shared.lua")
 
 function ENT:Think()

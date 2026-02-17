@@ -1,4 +1,6 @@
-
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Feedback)
+/*---------------------------------------------------------
 /*---------------------------------------------------------
    Name: gamemode:GetValidSpectatorModes( Player ply )
    Desc: Gets a table of the allowed spectator modes (OBS_MODE_INEYE, etc)

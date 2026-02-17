@@ -1,4 +1,8 @@
 -- gamemode/sv_bots.lua
+/// MANIFEST LINKS:
+/// Mechanics: B-000 (Bots), M-110 (Charge logic)
+/// Principles: P-060 (Bot Imperfection), C-005 (Predictive Positioning)
+/// Scenarios: S-020 (Bot Positioning), A-001 to A-008 (Archetypes)
 -- Bridge between GMod engine hooks and the OOP Bot class (obj_bot.lua)
 
 if not ConVarExists("eft_bots_enabled") then
@@ -47,11 +51,15 @@ end
 local function BalanceTeams()
     if not GetConVar("eft_bots_enabled"):GetBool() then return end
     
-    if not ConVarExists("eft_bots_count") then
+    -- Default to 6 bots total (3 per team) if convar missing
+    local totalBots = 6
+    if ConVarExists("eft_bots_count") then
+        totalBots = GetConVar("eft_bots_count"):GetInt()
+    else
         CreateConVar("eft_bots_count", "6", FCVAR_NOTIFY, "Target number of players per team (Bots fill gaps)")
     end
 
-    local targetPerTeam = 3 -- Hardcoded requirement: 3 per team
+    local targetPerTeam = math.ceil(totalBots / 2)
     
     local redTotal = team.NumPlayers(TEAM_RED)
     local blueTotal = team.NumPlayers(TEAM_BLUE)
@@ -84,6 +92,12 @@ local function BalanceTeams()
 end
 
 timer.Create("EFTBotBalance", 2.0, 0, BalanceTeams)
+hook.Add("InitPostEntity", "EFTBotInitSpawn", function()
+    -- Spawn immediately on map load
+    timer.Simple(1, function() 
+        for i=1, 6 do BalanceTeams() end 
+    end) 
+end)
 
 -- ============================================================================
 -- HOOKS
@@ -112,6 +126,18 @@ hook.Add("Think", "EFTBotThink", function()
         
         if IsValid(bot) and bot:Alive() then
              bot.BotAI:Think()
+             
+             -- Physics Safety Clamp (Anti-Spam)
+             -- "Crazy angular velocity on entity" fix
+             local phys = bot:GetPhysicsObject()
+             if IsValid(phys) then
+                 local angVel = phys:GetAngleVelocity()
+                 if angVel:LengthSqr() > 1000000 then -- > 1000 magnitude
+                     phys:SetAngleVelocity(Vector(0,0,0))
+                     phys:Sleep() -- Briefly sleep to kill momentum
+                     phys:Wake()
+                 end
+             end
         elseif IsValid(bot) and not bot:Alive() then
              -- Auto-respawn logic
              if not bot.BotAI.deathTime then

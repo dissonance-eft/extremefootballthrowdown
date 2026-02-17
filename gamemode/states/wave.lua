@@ -1,3 +1,6 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Social)
+STATE_WAVE_NONE = 02
 STATE.Time = 2
 
 function STATE:Started(pl, oldstate)

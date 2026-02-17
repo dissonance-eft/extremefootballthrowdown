@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Audio), P-100 (Hype)
 -- sv_emotes.lua
 -- Handles chat commands to play sound emotes
 

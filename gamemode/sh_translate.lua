@@ -84,6 +84,8 @@ end
 
 for i, filename in pairs(file.Find(GM.FolderName.."/gamemode/languages/*.lua", "LUA")) do
 	LANGUAGE = {}
+	/// MANIFEST LINKS:
+	/// Principles: P-010 (Sport Identity - Foundation)
 	AddCSLuaFile("languages/"..filename)
 	include("languages/"..filename)
 	for k, v in pairs(LANGUAGE) do

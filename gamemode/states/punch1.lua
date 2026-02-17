@@ -1,4 +1,7 @@
 STATE.Time = 0.5
+/// MANIFEST LINKS:
+/// Mechanics: M-110 (Standard Melee/Punch)
+/// Principles: P-020 (Interaction Frequency), P-040 (Physics-based disruption)
 --STATE.Time = 0.6
 --STATE.HitTime = 0.33
 

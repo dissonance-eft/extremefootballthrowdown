@@ -1,4 +1,9 @@
 -- gamemode/obj_ball.lua
+/// MANIFEST LINKS:
+/// Mechanics: M-140 (Possession), M-150 (Fumble), M-170 (Hazards)
+/// Events: E-220 (PossessionTransfer), E-230 (BallLoose), E-240 (BallReset)
+/// Principles: P-080 (Ball Readability), P-950 (Possession Volatility)
+/// Scenarios: S-001 (Goal Line Stand), S-011 (Loose Ball Bounce)
 -- OOP Ball implementation for EFT
 -- See lib/SBOX_MAPPING.lua for full porting reference.
 --

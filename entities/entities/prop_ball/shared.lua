@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-010 (Possession - Ball Types)
 ENT.Type = "anim"
 ENT.RenderGroup = RENDERGROUP_TRANSLUCENT
 
