@@ -107,4 +107,6 @@ function STATE:CreateMove(pl, cmd)
 	ang.y = oldAng.y + yawDiff * 0.25
 	ang.p = oldAng.p + pitchDiff * 0.25
 	cmd:SetViewAngles(ang)
+
+	return true
 end

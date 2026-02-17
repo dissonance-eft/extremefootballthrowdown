@@ -44,8 +44,14 @@ function BotPathfinder.GetNextWaypoint(bot, targetPos)
 		endpos = targetPos + Vector(0,0,10),
 		mins = Vector(-16, -16, 0),
 		maxs = Vector(16, 16, 72),
-		mask = MASK_PLAYERSOLID, -- Include World + Props + Clips
-		filter = bot
+		mask = MASK_SOLID, -- Hit everything solid (World + Props + Players initially)
+		filter = function(ent) 
+            -- Ignore the bot itself AND all other players/bots.
+            -- We only want to pathfind around "Map" obstacles (Walls, Props).
+            -- Dynamic player obstacles are handled by the combat AI (Switch to melee/Stuck check).
+            if ent:IsPlayer() or ent:IsNPC() then return false end
+            return true 
+        end
 	})
 	
 	if not tr.Hit then return nil end -- Direct path is clear, no A* needed

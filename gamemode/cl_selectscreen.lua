@@ -178,7 +178,51 @@ function GM:ShowTeam()
 	-- Player List Blue
 	CreatePlayerRows(blueBtn, TEAM_BLUE, 30 + logoSize + 140)
 
+	-- MODEL SELECTOR (Bottom Center)
+    draw.SimpleText("Choose Character", "EFTTeamSelectSpectator", w/2, h - 230, Color(200, 200, 200), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 
+    local modelScroll = vgui.Create("DHorizontalScroller", frame)
+    modelScroll:SetSize(800, 80) -- Widened from 600, Height 80 to fit 64px icons + padding
+    modelScroll:SetPos(w/2 - 400, h - 220)
+    modelScroll:SetOverlap(-10) -- Increase spacing (negative overlap = spacing)
+
+    local currentModel = GetConVarString("cl_playermodel")
+    local allowedModels = {}
+    for mdl, allowed in pairs(GAMEMODE.AllowedPlayerModels) do
+        if allowed then table.insert(allowedModels, mdl) end
+    end
+    table.sort(allowedModels)
+
+    for _, mdl in ipairs(allowedModels) do
+        local icon = vgui.Create("SpawnIcon", modelScroll)
+        icon:SetModel(mdl)
+        icon:SetSize(64, 64)
+        icon:SetToolTip(mdl)
+        
+        -- Highlight selected model
+        if string.lower(mdl) == string.lower(currentModel) then
+            icon.PaintOver = function(s, w, h)
+                surface.SetDrawColor(0, 255, 0, 100)
+                surface.DrawOutlinedRect(0, 0, w, h, 2)
+            end
+        end
+
+        icon.DoClick = function()
+            RunConsoleCommand("cl_playermodel", mdl)
+            surface.PlaySound("UI/buttonclick.wav")
+            
+            -- Refresh highlights
+            for _, child in pairs(modelScroll.Panels) do
+                child.PaintOver = nil
+            end
+            icon.PaintOver = function(s, w, h)
+                surface.SetDrawColor(0, 255, 0, 255)
+                surface.DrawOutlinedRect(0, 0, w, h, 2)
+            end
+        end
+        
+        modelScroll:AddPanel(icon)
+    end
 	-- SPECTATOR (Bottom)
 	local specBtn = vgui.Create("DButton", frame)
 	specBtn:SetSize(280, 50)

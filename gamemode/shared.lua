@@ -44,13 +44,13 @@ GM.UseAutoJoin = false
 
 GM.AllowSpectating = true
 GM.ValidSpectatorModes = {OBS_MODE_ROAMING, OBS_MODE_CHASE}
-GM.ValidSpectatorEntities = {"player", "prop_ball"}
+GM.ValidSpectatorEntities = {"prop_ball"}
 GM.CanOnlySpectateOwnTeam = true
 
 GM.SelectClass = false
 
-GM.SecondsBetweenTeamSwitches = 3
-GM.SecondsBetweenTeamSwitchesFromSpec = 3
+GM.SecondsBetweenTeamSwitches = 5
+GM.SecondsBetweenTeamSwitchesFromSpec = 10
 
 -- Server-only convars (created only on server, replicated to clients)
 if SERVER then
@@ -136,8 +136,34 @@ GM.DeathLingerTime = 0
 
 GM.AutomaticTeamBalance = true
 
-GM.PointsForScoring = 100
-GM.PointsForDamage = 0.2
+
+-- Helper to get goal entities for a team
+function GM:GetGoalEntities(teamid)
+    local goals = {}
+    for _, ent in pairs(ents.FindByClass("prop_goal")) do
+        if ent:GetTeamID() == teamid then
+            table.insert(goals, ent)
+        end
+    end
+    for _, ent in pairs(ents.FindByClass("trigger_goal")) do
+        if ent:GetTeamID() == teamid then
+            table.insert(goals, ent)
+        end
+    end
+    return goals
+end
+
+-- Helper to get the center position of a team's goal(s)
+function GM:GetGoalCenter(teamid)
+    local goals = self:GetGoalEntities(teamid)
+    if #goals == 0 then return vector_origin end
+
+    local center = Vector(0,0,0)
+    for _, goal in ipairs(goals) do
+        center = center + goal:LocalToWorld(goal:OBBCenter())
+    end
+    return center / #goals
+end
 
 GM.Ball = GM.Ball or NULL
 GM.BallTrigger = GM.BallTrigger or NULL
@@ -289,29 +315,6 @@ function GM:GetGameTimeLeft()
 	return math.max(0, limit - CurTime())
 end
 
-function GM:RecalculateGoalCenters(teamid)
-	local ball = self:GetBall()
-	if ball:IsValid() then
-		local vec = Vector(0, 0, 0)
-		local num = 0
-		local goals = ents.FindByClass("prop_goal")
-		goals = table.Add(goals, ents.FindByClass("trigger_goal"))
-		for _, ent in pairs(goals) do
-			if ent:GetTeamID() == teamid then
-				vec = vec + ent:LocalToWorld(ent:OBBCenter())
-				num = num + 1
-			end
-		end
-		if num > 0 then
-			if teamid == TEAM_RED then
-				ball:SetRedGoalCenter(vec / num)
-			elseif teamid == TEAM_BLUE then
-				ball:SetBlueGoalCenter(vec / num)
-			end
-		end
-	end
-end
-
 function GM:InitPostEntity()
 	self.BaseClass:InitPostEntity()
 end
@@ -333,21 +336,6 @@ function GM:GetBallHome()
 	local ball = self:GetBall()
 	if ball:IsValid() then
 		return ball:GetHome()
-	end
-
-	return vector_origin
-end
-
-function GM:GetGoalCenter(teamid)
-	local ball = self:GetBall()
-	if ball:IsValid() then
-		if teamid == TEAM_RED then
-			return ball:GetRedGoalCenter()
-		end
-
-		if teamid == TEAM_BLUE then
-			return ball:GetBlueGoalCenter()
-		end
 	end
 
 	return vector_origin

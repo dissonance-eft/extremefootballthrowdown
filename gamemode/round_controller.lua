@@ -41,6 +41,13 @@ function GM:OnPreRoundStart( num )
 	UTIL_StripAllPlayers()
 	UTIL_SpawnAllPlayers()
 	UTIL_FreezeAllPlayers()
+    
+    -- Reset PreRound countdown flags for the new round
+    self.PreRoundCountDownPlayed = {}
+    -- Also reset Round flags just in case
+    self.CountDownPlayed = {}
+    self.Warn30Played = false
+    self.Warn60Played = false
 
 end
 
@@ -150,25 +157,8 @@ function GM:OnTimerTick()
         net.Broadcast()
     end
 
-    -- PreRound Countdown (Starts at RoundStartTime)
-    local startTime = GetGlobalFloat("RoundStartTime", 0)
-    local timeUntilStart = startTime - CurTime()
-    
-    if timeUntilStart <= 5 and timeUntilStart > 0 then
-        local sec = math.ceil(timeUntilStart)
-        if not self.PreRoundCountDownPlayed then self.PreRoundCountDownPlayed = {} end
-        
-        if not self.PreRoundCountDownPlayed[sec] then
-            self.PreRoundCountDownPlayed[sec] = true
-            -- Reuse the same 1-10 sounds
-            local soundPath = "eft/announcer/" .. sec .. ".wav"
-             net.Start("eft_localsound")
-                net.WriteString(soundPath)
-                net.WriteFloat(100)
-                net.WriteFloat(1.0)
-            net.Broadcast()
-        end
-    end
+    -- PreRound Countdown REMOVED per user request
+    -- Only the final 10s countdown of the round remains.
 end
 
 function GM:RoundStart()

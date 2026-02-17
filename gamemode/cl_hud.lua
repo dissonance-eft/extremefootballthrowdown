@@ -23,22 +23,6 @@ function GM:RefreshHUD()
 	if IsValid(self.HudLayout) then self.HudLayout:Remove() end
 	
 	self.HudLayout = vgui.Create("DHudLayout")
-
-	if IsValid(self.HudLayout) then
-		local bar = vgui.Create("DHudBar")
-		self.HudLayout:AddItem(bar)
-
-
-		-- Health and Ammo removed per user request (files missing)
-		-- local ammo = vgui.Create("DHudAmmo")
-		-- bar:AddItem(ammo)
-		
-		-- local health = vgui.Create("DHudHealth")
-		-- bar:AddItem(health)
-		
-		local time = vgui.Create("DHudCountdown")
-		self.HudLayout:AddItem(time)
-	end
 end
 
 hook.Add("InitPostEntity", "EFT_CreateHUD", function()
@@ -46,6 +30,27 @@ hook.Add("InitPostEntity", "EFT_CreateHUD", function()
 end)
 
 -- If refreshed mid-game
+-- Hide standard HL2 HUD elements (Health, Suit, Ammo, etc.)
+function GM:HUDShouldDraw(name)
+	local hidden = {
+		["CHudHealth"] = true,
+		["CHudBattery"] = true,
+		["CHudAmmo"] = true,
+		["CHudSecondaryAmmo"] = true,
+		["CHudWeaponSelection"] = true,
+		["CHudCrosshair"] = true -- We use custom crosshair or third person
+	}
+	
+	if hidden[name] then return false end
+	
+	-- Fretta base might have its own logic, or we let other things draw
+	if self.BaseClass.HUDShouldDraw then
+		return self.BaseClass:HUDShouldDraw(name)
+	end
+	
+	return true
+end
+
 if IsValid(LocalPlayer()) then
 	GAMEMODE:RefreshHUD()
 end
