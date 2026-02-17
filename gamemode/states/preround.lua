@@ -1,3 +1,6 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
+STATE.Time = 3
 function STATE:IsIdle(pl)
 	return false
 end

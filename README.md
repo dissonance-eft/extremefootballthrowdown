@@ -37,6 +37,16 @@ Originally created by **JetBoom** (William Moodhe) in 2012 on NoxiousNet. This f
 - **Throw**: Hold to charge power, release to lob a grenade-arc pass. The carrier is nearly frozen while winding up — throwing is a commitment
 - **Ball Carrier**: Moves at 75% speed. You WILL be caught. Score fast or pass
 
+## Design Pillars (Behavioral Requirements)
+
+The system is built to preserve three core behaviors (see `MANIFEST.md` for full contract):
+
+1.  **Shared Attention Convergence**: The game naturally pulls players toward the same conflict location. No wandering or spreading out.
+2.  **Global Readability**: Major events must be instantly readable to all players so they can anticipate and react emotionally.
+3.  **Universal Influence**: Low-skill participation (body blocking, pressure) must meaningfully affect outcomes alongside high-skill mechanics.
+4.  **Map Authority**: Arena geometry regulates gameplay timing. The engine adapts to the map, not vice versa.
+
+
 ## Maps
 
 EFT ships with 15 maps, each with distinct geometry that creates different tactical situations:

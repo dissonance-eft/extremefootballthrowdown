@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Feedback)
 --[[
 	sv_gmchanger.lua - Gamemode Changer (server side)
 	-----------------------------------------------------

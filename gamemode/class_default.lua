@@ -1,4 +1,5 @@
-
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 local CLASS = {}
 
 CLASS.DisplayName			= "Default Class"

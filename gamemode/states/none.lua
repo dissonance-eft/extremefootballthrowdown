@@ -1,4 +1,7 @@
 local ACT_HL2MP_RUN_CHARGING = ACT_HL2MP_RUN_CHARGING
+/// MANIFEST LINKS:
+/// Mechanics: M-110 (Movement - Base)
+/// Principles: P-050 (Movement Constraints)
 local IN_RELOAD = IN_RELOAD
 local math_AngleDifference = math.AngleDifference
 local pairs = pairs
@@ -20,18 +23,9 @@ function STATE:Started(pl, oldstate)
 end
 
 function STATE:Think(pl)
-	self:HighJumpThink(pl)
 end
 
-function STATE:HighJumpThink(pl)
-	if pl:GetStateNumber() == 0 then
-		if pl:Crouching() and pl:IsOnGround() and pl:GetVelocity():LengthSqr() <= 256 and not pl:IsCarrying() then
-			pl:SetStateNumber(CurTime() + 1)
-		end
-	elseif not pl:Crouching() or not pl:OnGround() or pl:GetVelocity():LengthSqr() > 256 or pl:IsCarrying() then
-		pl:SetStateNumber(0)
-	end
-end
+
 
 function STATE:DoAnimationEvent(pl, event, data)
 	if event == PLAYERANIMEVENT_ATTACK_PRIMARY then
@@ -52,7 +46,7 @@ local P_Alive = M_Player.Alive
 local E_IsValid = M_Entity.IsValid
 
 function STATE:Think(pl)
-	self:HighJumpThink(pl)
+
 
 	if not pl:CanCharge() then
 		if pl:GetCollisionMode() > COLLISION_NORMAL then
@@ -142,10 +136,22 @@ function STATE:Think(pl)
 				local myCheck = myspeed
 				local otherCheck = otherspeed
 				if pl:IsBot() and hitent:IsBot() then
-					local s1 = pl.TackleSkill or math.Rand(0.95, 1.05)
-					local s2 = hitent.TackleSkill or math.Rand(0.95, 1.05)
-					myCheck = myspeed * s1
-					otherCheck = otherspeed * s2
+                    -- Fair 50/50 for close calls (< 50 units diff)
+                    if math.abs(myspeed - otherspeed) < 50 then
+                        if math.random() > 0.5 then
+                            myCheck = 10000 -- I win
+                            otherCheck = 0
+                        else
+                            myCheck = 0 -- They win
+                            otherCheck = 10000
+                        end
+                    else
+                        -- Standard variance for larger gaps
+    					local s1 = pl.TackleSkill or math.Rand(0.95, 1.05)
+    					local s2 = hitent.TackleSkill or math.Rand(0.95, 1.05)
+    					myCheck = myspeed * s1
+    					otherCheck = otherspeed * s2
+                    end
 				end
 
 				-- Punish us if our speed is less.
@@ -174,18 +180,14 @@ function STATE:KeyPress(pl, key)
 		pl:SetStateInteger(1)
 	elseif key == IN_RELOAD then
 		pl:SetStateInteger(-1)
-	else]]if key == IN_JUMP and self:CanHighJump(pl) then
-		pl:SetState(STATE_HIGHJUMP, 5)
-	end
+	else]]
 end
 
 function STATE:Reload(pl)
 	pl:SetStateInteger(-1)
 end
 
-function STATE:CanHighJump(pl)
-	return pl:Crouching() and pl:OnGround() and CurTime() >= pl:GetStateNumber() and pl:GetStateNumber() > 0 and not pl:IsCarrying()
-end
+
 
 function STATE:KeyRelease(pl, key)
 	--if key == IN_ATTACK2 and pl:GetStateInteger() == 1 or key == IN_RELOAD and pl:GetStateInteger() == -1 then
@@ -194,18 +196,4 @@ function STATE:KeyRelease(pl, key)
 	end
 end
 
-local skip = false
-local matWhite = Material("models/debug/debugwhite")
-function STATE:PostPlayerDraw(pl)
-	if not skip and pl:GetStateNumber() > 0 and CurTime() >= pl:GetStateNumber() then
-		skip = true
-		pl.SkipDrawHooks = true
-		render.ModelMaterialOverride(matWhite)
-		render.SetBlend(math.abs(math.sin(CurTime() * 14)) * 0.4)
-		pl:DrawModel()
-		render.SetBlend(1)
-		render.ModelMaterialOverride()
-		pl.SkipDrawHooks = nil
-		skip = false
-	end
-end
+

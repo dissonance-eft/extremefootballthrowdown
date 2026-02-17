@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-110 (Status Effects)
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 

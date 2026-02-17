@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Animation Tools)
 if _INCLUDEDANIMEDITOR then return end
 _INCLUDEDANIMEDITOR = true
 

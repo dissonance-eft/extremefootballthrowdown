@@ -1,4 +1,7 @@
-STATE.Time = 0.66
+/// MANIFEST LINKS:
+/// Mechanics: M-130 (Collision - Fighting)
+STATE.Duration = 1.3
+STATE.Time = 0.6
 
 function STATE:NoSuicide(pl)
 	return true

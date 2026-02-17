@@ -1,4 +1,7 @@
 ENT.Type = "brush"
+/// MANIFEST LINKS:
+/// Mechanics: M-120 (Environmental Knockdown)
+/// Principles: P-020 (Interaction Frequency)
 
 AccessorFunc(ENT, "m_StartTouchOnly", "StartTouchOnly", FORCE_BOOL)
 AccessorFunc(ENT, "m_Enabled", "Enabled", FORCE_BOOL)

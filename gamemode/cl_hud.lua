@@ -1,4 +1,6 @@
 -- gamemode/cl_hud.lua
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity), C-009 (Status Info)
 -- Restored Original Fretta-Style HUD
 
 function GM:HUDPaint()

@@ -1,4 +1,9 @@
 STATE.Time = 0.45
+/// MANIFEST LINKS:
+/// Mechanics: M-160 (Passing & Windup)
+/// Events: E-230 (BallLoose - on release)
+/// Principles: P-070 (Passing Purpose), C-009 (Commitment Under Uncertainty)
+/// Scenarios: S-002 (Panic Pass), S-003 (Long Throw)
 STATE.AnimTime = STATE.Time * 2.1
 STATE.ThrowForce = 1100
 STATE.ChargeTime = 1

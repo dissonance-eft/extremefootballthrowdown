@@ -1,5 +1,7 @@
 AddCSLuaFile()
 
+/// MANIFEST LINKS:
+/// Mechanics: M-050 (Game Flow)
 ENT.Type = "point"
 
 ENT.RoundsToWin = 2

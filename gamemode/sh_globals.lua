@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 SPEED_CHARGE = 300
 SPEED_RUN = 150
 SPEED_STRAFE = 160

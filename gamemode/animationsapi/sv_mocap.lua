@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Animation)
 if CLIENT or GetLuaAnimations ~= nil then return end
 
 include("sh_boneanimlib.lua")
@@ -12,6 +14,7 @@ hook.Add("Initialize", "BAL_Initialize", function()
 	util.AddNetworkString("bal_stopgroup")
 	util.AddNetworkString("bal_stopall")
 end)
+
 
 -- These are unreliable. All Lua animations should be set on both the client and server (predicted).
 local meta = FindMetaTable("Entity")

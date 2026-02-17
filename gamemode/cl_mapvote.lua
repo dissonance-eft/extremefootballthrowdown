@@ -1,4 +1,6 @@
 -- gamemode/cl_mapvote.lua
+/// MANIFEST LINKS:
+/// Principles: C-007 (Migrating Conflict Zone - Map Choice)
 -- Map Vote UI for EFT (client side)
 -- Modern vote screen with map thumbnail images, vote counts, and player avatars.
 --

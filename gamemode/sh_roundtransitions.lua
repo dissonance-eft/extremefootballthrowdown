@@ -1,4 +1,7 @@
 if SERVER then
+/// MANIFEST LINKS:
+/// Mechanics: M-180 (Scoring - Celebrations)
+/// Principles: P-100 (Reversals/Hype), C-001 (Continuous Contest)
 	AddCSLuaFile()
 
 	local filelist = file.Find(GM.FolderName.."/gamemode/round_transitions/*.lua", "LUA")

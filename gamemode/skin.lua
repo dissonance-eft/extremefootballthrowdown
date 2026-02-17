@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - UI)
 /*
 	skin.lua - Fretta Derma Skin
 	-----------------------------------------------------

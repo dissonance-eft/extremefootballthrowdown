@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-110 (Status Effects)
 AddCSLuaFile()
 
 ENT.Type = "anim"

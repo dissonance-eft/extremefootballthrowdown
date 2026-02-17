@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Animation), P-080 (Readability - Animation)
 if CLIENT or GetLuaAnimations ~= nil then return end
 
 include("sh_boneanimlib.lua")

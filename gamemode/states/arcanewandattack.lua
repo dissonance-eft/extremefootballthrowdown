@@ -1,4 +1,6 @@
 STATE.Time = 3.2
+/// MANIFEST LINKS:
+/// Mechanics: M-130 (Collision - Weapon), P-060 (Physicality)
 
 function STATE:Started(pl, oldstate)
 	--pl:ResetJumpPower(0)

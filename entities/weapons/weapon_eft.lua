@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-130 (Combat)
 AddCSLuaFile()
 
 SWEP.PrintName = ""

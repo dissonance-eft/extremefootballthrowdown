@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Feedback), P-100 (Hype)
 local matCrater = Material("Decals/rollermine_crater")
 function EFFECT:Init(data)
 	self.DieTime = CurTime() + 0.25

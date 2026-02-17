@@ -68,6 +68,9 @@ function GM:ShowClassChooser( TEAMID )
 	for k, v in SortedPairs( Classes ) do
 		
 		local displayname = v
+		/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - UI)
+local PANEL = {}
 		local Class = player_class.Get( v )
 		if ( Class && Class.DisplayName ) then
 			displayname = Class.DisplayName

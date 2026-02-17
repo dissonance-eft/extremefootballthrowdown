@@ -1,5 +1,5 @@
 # Design document (private, not shipped)
-design.md
+MANIFEST.md
 
 # s&box port stubs (separate repo eventually)
 sbox/
@@ -21,4 +21,8 @@ Desktop.ini
 *.swo
 *~
 .vscode/
-.idea/
+
+# Dev Tools & Testing
+tests/
+tools/
+manifest/

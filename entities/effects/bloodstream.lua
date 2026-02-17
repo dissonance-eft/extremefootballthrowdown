@@ -48,6 +48,8 @@ local function CollideCallback(oldparticle, hitpos, hitnormal)
 	emitter:Finish()
 end
 
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Feedback), P-100 (Hype)
 function EFFECT:Init(data)
 	local pos = data:GetOrigin() + Vector(0, 0, 10)
 
@@ -79,6 +81,7 @@ end
 function EFFECT:Think()
 	return false
 end
+
 
 function EFFECT:Render()
 end

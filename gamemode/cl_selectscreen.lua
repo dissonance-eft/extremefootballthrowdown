@@ -1,4 +1,7 @@
 
+local PANEL = {}
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - UI), C-009 (Status Info)
 local MAT_RED = Material("red_rhinos")
 local MAT_BLUE = Material("blue_bulls")
 

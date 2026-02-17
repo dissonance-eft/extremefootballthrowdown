@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-010 (Ball Types)
 include("shared.lua")
 
 function ENT:Initialize()

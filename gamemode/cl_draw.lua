@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - UI)
 local draw_SimpleText = draw.SimpleText
 local draw_DrawText = draw.DrawText
 

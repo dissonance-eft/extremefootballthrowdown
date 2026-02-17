@@ -1,8 +1,12 @@
 AddCSLuaFile("cl_init.lua")
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity), C-001 (Continuous Contest)
 AddCSLuaFile("shared.lua")
 AddCSLuaFile("sh_globals.lua")
 AddCSLuaFile("cl_obj_entity_extend.lua")
 AddCSLuaFile("cl_obj_player_extend.lua")
+AddCSLuaFile("cl_manifest_data.lua")
+AddCSLuaFile("cl_manifest_debug.lua")
 AddCSLuaFile("sh_obj_entity_extend.lua")
 AddCSLuaFile("sh_obj_player_extend.lua")
 AddCSLuaFile("sh_states.lua")
@@ -202,6 +206,17 @@ function GM:PlayerSpawn(pl)
 
 	-- Spawn logic is now owned by PlayerController
 	if pl.Controller then pl.Controller:OnSpawn() end
+
+    -- S4 Audio Overhaul: Player Respawn Sound
+    -- Only play if the round is active (don't spam on initial connect)
+    if self:InRound() and not self:IsWarmUp() then
+        local soundPath = "eft/announcer/player_respawn.wav"
+        net.Start("eft_localsound")
+            net.WriteString(soundPath)
+            net.WriteFloat(100) -- Pitch
+            net.WriteFloat(1.0) -- Volume
+        net.Broadcast()
+    end
 end
 
 -- Tiebreaker logic is now owned by GameManager
@@ -243,6 +258,14 @@ function GM:PlayerDeath(victim, inflictor, attacker)
 	end
 
 	self.BaseClass.PlayerDeath(self, victim, inflictor, attacker) -- GMod Base
+
+    -- S4 Audio Overhaul: Player Death Sound
+    local soundPath = "eft/announcer/player_dead.wav"
+    net.Start("eft_localsound")
+        net.WriteString(soundPath)
+        net.WriteFloat(100) -- Pitch
+        net.WriteFloat(1.0) -- Volume
+    net.Broadcast()
 end
 
 function GM:DoPlayerDeath(pl, attacker, dmginfo)

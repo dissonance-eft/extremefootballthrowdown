@@ -1,4 +1,7 @@
 KD_STATE_NONE = 0
+/// MANIFEST LINKS:
+/// Mechanics: M-120 (Knockdown State)
+/// Principles: P-100 (Punishment for failure), C-002 (Short Possession - Turnover opportunity)
 KD_STATE_WALLSLAM = 1
 KD_STATE_GETTINGUP = 2
 KD_STATE_DIVETACKLED = 3

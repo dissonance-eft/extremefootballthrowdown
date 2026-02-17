@@ -1,4 +1,7 @@
 -- gamemode/obj_gamemanager.lua
+/// MANIFEST LINKS:
+/// Mechanics: M-170 (Resets), M-180 (Scoring)
+/// Principles: P-020 (Interaction Frequency), C-010 (Continuous Participation)
 -- OOP Game Manager for EFT
 -- Manages Round State, Scoring, and Game Loop
 -- See lib/SBOX_MAPPING.lua for full porting reference.
@@ -373,6 +376,14 @@ function GameManager:OnTeamScored(teamid, hitter, points, istouch)
     local celebrationTime = (GM.RoundPostLength or 5) + (GM.RoundPreStartTime or 3)
     self:AddBonusTime(celebrationTime)
 
+    -- Play Random Goal Sound (1-5)
+    local goalSound = "eft/announcer/goal" .. math.random(1, 5) .. ".wav"
+    net.Start("eft_localsound")
+        net.WriteString(goalSound)
+        net.WriteFloat(100) -- Pitch
+        net.WriteFloat(1.0) -- Volume
+    net.Broadcast()
+
     local ball = GM:GetBall()
 
     net.Start("eft_teamscored")
@@ -397,6 +408,10 @@ function GameManager:OnTeamScored(teamid, hitter, points, istouch)
 
     -- Legacy hook for gamemode extensions
     gamemode.Call("OnTeamScored", teamid, hitter, points, istouch)
+
+    if RecordMatchEvent then
+        RecordMatchEvent("goal", hitter, {points = points, istouch = istouch, team = teamid})
+    end
 end
 
 --- Set up the tiebreaker minigame between the top players of each team.

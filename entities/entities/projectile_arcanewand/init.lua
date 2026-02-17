@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-130 (Combat - Projectile)
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 

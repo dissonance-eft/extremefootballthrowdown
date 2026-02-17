@@ -1,4 +1,9 @@
 -- gamemode/obj_player.lua
+/// MANIFEST LINKS:
+/// Mechanics: M-110 (Charge), M-120 (Knockdown), M-130 (Head-On Collision)
+/// Events: E-210 (TackleResolve), E-250 (PlayerKnockdown)
+/// Principles: P-050 (Movement), P-060 (Head-On), P-950 (Collision Density)
+/// Scenarios: S-005 (Swarm), S-009 (Speed Duel), S-017 (Mid-Air Catch)
 -- OOP Player Controller for EFT
 -- Bridges GMod Player meta-table to a class-based system for s&box parity
 -- See lib/SBOX_MAPPING.lua for full porting reference.
@@ -147,6 +152,10 @@ if SERVER then
         end
 
         ply:SetGravity(1)
+
+        if RecordMatchEvent and teamid ~= TEAM_SPECTATOR and teamid ~= TEAM_CONNECTING then
+            RecordMatchEvent("respawn", ply)
+        end
     end
 
     --- Handle player taking damage: track attacker, award points, play pain sound.
@@ -235,6 +244,10 @@ if SERVER then
             end
             if GameEvents.OnPlayerKnockedDownBy then GameEvents.OnPlayerKnockedDownBy:Invoke(ply, knocker) end
             gamemode.Call("OnPlayerKnockedDownBy", ply, knocker)
+
+            if RecordMatchEvent then
+                RecordMatchEvent("tackle_success", {knocker, ply})
+            end
         end
 
         local carry = ply:GetCarrying()

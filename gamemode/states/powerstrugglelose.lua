@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-130 (Collision - Fighting)
 STATE.Time = 0.66
 
 function STATE:NoSuicide(pl)
@@ -10,7 +12,8 @@ end
 
 function STATE:GetOpponent(pl)
 	local opp = pl:GetStateEntity()
-	if opp:IsValid() and opp:GetStateEntity() == pl and opp:GetState() == STATE_POWERSTRUGGLEWIN then
+	if opp:IsValid() and opp:GetStateEntity() == pl and opp:GetState() == STATE_POWERSTRUGGLELOSE_NONE then -- MANIFEST LINKS:
+-- Mechanics: M-130 (Collision - Fighting)
 		return opp
 	end
 end
@@ -56,6 +59,9 @@ function STATE:CalcMainActivity(pl, velocity)
 end
 
 function STATE:UpdateAnimation(pl, velocity, maxseqgroundspeed)
+	-- MANIFEST LINKS:
+	-- Mechanics: M-130 (Collision - Power Struggle), S-005 (Swarm)
+	-- Principles: P-100 (Reversals)
 	pl:SetCycle(math.Clamp((CurTime() - pl:GetStateStart()) / self.Time, 0, 1))
 	pl:SetPlaybackRate(0)
 

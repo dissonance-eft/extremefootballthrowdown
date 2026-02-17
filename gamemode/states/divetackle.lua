@@ -1,4 +1,7 @@
 STATE.ExtraSpeed = 100
+/// MANIFEST LINKS:
+/// Mechanics: M-120 (Dive Tackle), M-110 (Movement Lock)
+/// Principles: P-100 (High Risk/Reward), C-004 (Last-Second Intervention)
 STATE.UpwardBoost = 320
 
 function STATE:IsIdle(pl)

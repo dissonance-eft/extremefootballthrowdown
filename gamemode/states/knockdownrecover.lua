@@ -1,3 +1,7 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-120 (Knockdown Recovery)
+/// Principles: P-020 (Interaction Frequency), C-002 (Short Possession)
+STATE.RecoverTime = 2
 function STATE:Started(pl, oldstate)
 	pl:ResetJumpPower(0)
 end

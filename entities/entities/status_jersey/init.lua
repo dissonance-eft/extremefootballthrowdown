@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 

@@ -1,4 +1,7 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - UI)
 local ColorModTime = {
+
 	["$pp_colour_contrast"] = 1,
 	["$pp_colour_colour"] = 0,
 	["$pp_colour_addr"] = 0,

@@ -1,4 +1,6 @@
-STATE.Time = 1
+STATE.Time = 1.0
+/// MANIFEST LINKS:
+/// Mechanics: M-130 (Collision - Weapon), P-060 (Physicality)
 STATE.HitTime = 0.6
 STATE.Range = 128
 STATE.FOV = 140

@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-130 (Combat - Projectile)
 include("shared.lua")
 
 ENT.RenderGroup = RENDERGROUP_TRANSLUCENT

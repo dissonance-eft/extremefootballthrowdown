@@ -1,4 +1,6 @@
 AddCSLuaFile()
+/// MANIFEST LINKS:
+/// Mechanics: M-140 (Possession - Object), P-080 (Readability)
 
 ENT.Type = "anim"
 ENT.Base = "prop_carry_base"

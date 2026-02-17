@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 include("shared.lua")
 
 ENT.RenderGroup = RENDERGROUP_TRANSLUCENT

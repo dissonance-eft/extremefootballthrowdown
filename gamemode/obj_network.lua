@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 -- gamemode/obj_network.lua
 -- OOP Networking Wrapper for EFT
 -- Mimics s&box RPCs / Networked properties
@@ -31,6 +33,7 @@ function Network:ctor()
     self._totalBytes = 0
     self._totalMessages = 0
     self._windowStart = CurTime and CurTime() or 0
+
 end
 
 -- ============================================================================

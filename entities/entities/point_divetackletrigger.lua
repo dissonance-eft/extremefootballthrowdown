@@ -1,4 +1,6 @@
-ENT.Type = "anim"
+/// MANIFEST LINKS:
+/// Mechanics: M-130 (Collision - Tackle)
+ENT.Type = "point"
 
 function ENT:Initialize()
 	self:PhysicsInitBox(Vector(-16, -16, -16), Vector(16, 16, 72))

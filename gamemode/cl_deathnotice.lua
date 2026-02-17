@@ -1,4 +1,6 @@
 /*
+/// MANIFEST LINKS:
+/// Principles: P-090 (Death Consequence), C-010 (Continuous Participation)
 	Start of the death message stuff.
 */
 

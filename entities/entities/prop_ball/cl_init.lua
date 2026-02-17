@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Ball Readability)
 include("shared.lua")
 
 util.PrecacheSound("weapons/physcannon/energy_sing_loop4.wav")

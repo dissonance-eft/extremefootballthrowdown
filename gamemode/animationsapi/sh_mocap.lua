@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Animation)
 --Mocap
 
 include("mocap_controller.lua")

@@ -1,4 +1,5 @@
-
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 module( "player_class", package.seeall )
 
 local ClassTables = {}

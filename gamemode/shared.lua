@@ -1,4 +1,6 @@
 -- Base gamemode includes (previously from fretta13)
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity), C-001 (Continuous Contest)
 GM.Name = "Extreme Football Throwdown"
 GM.Author = "William \"JetBoom\" Moodhe"
 GM.Email = "williammoodhe@gmail.com"
@@ -59,6 +61,7 @@ if SERVER then
 	CreateConVar("eft_competitive", "0", FCVAR_REPLICATED + FCVAR_NOTIFY, "Use competitive ruleset. 1 = competitive (whitelisted items), 2 = very competitive (no items)")
 	CreateConVar("eft_scorelimit", "10", FCVAR_REPLICATED + FCVAR_NOTIFY, "How many points to win.")
 	CreateConVar("eft_pity", "4", FCVAR_REPLICATED + FCVAR_NOTIFY, "If a team is up by this many points, the other team receives speed buffs with the ball.")
+	CreateConVar("eft_dev", "0", FCVAR_REPLICATED + FCVAR_NOTIFY, "Enable developer debug features and visualizations.")
 end
 
 -- Initialize defaults (will be updated by callbacks when convar values are received)

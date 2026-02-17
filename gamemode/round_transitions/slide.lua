@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-080 (Readability - Transitions)
 function TRANSITION:In(delta, scrw, scrh)
 	surface.SetDrawColor(0, 0, 0, 255)
 	surface.DrawRect(0, 0, scrw * delta ^ 2, scrh)

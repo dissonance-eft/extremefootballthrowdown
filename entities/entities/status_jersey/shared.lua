@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Principles: P-010 (Sport Identity - Foundation)
 ENT.Type = "anim"
 
 function ENT:Initialize()

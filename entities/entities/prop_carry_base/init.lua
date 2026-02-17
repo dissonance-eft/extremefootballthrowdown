@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-140 (Possession Base)
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 

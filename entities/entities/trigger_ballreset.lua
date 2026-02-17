@@ -1,4 +1,7 @@
 ENT.Type = "brush"
+/// MANIFEST LINKS:
+/// Mechanics: M-170 (Hazards/Resets)
+/// Principles: P-090 (Hazards are Intentional)
 
 ENT.m_Enabled = true
 

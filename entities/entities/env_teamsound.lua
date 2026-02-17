@@ -1,3 +1,5 @@
+/// MANIFEST LINKS:
+/// Mechanics: M-170 (Soundscapes)
 ENT.Type = "point"
 
 function ENT:AcceptInput(name, activator, caller, args)
