@@ -17,7 +17,7 @@ function STATE:Started(pl, oldstate)
 end
 
 function STATE:Ended(pl, newstate)
-	if newstate == STATE_NONE then
+	if newstate == STATE_MOVEMENT then
 		pl:SetNextMoveVelocity(pl:GetVelocity() + pl:GetStateVector())
 	end
 end

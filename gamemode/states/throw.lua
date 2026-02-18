@@ -18,7 +18,7 @@ end
 
 if SERVER then
 function STATE:Ended(pl, newstate)
-	if newstate == STATE_NONE then
+	if newstate == STATE_MOVEMENT then
 		local carrying = pl:GetCarry()
 		if carrying.Drop then
 			local throwforce = self:GetThrowForce(pl)

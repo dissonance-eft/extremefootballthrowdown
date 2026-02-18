@@ -19,7 +19,7 @@ end
 
 if SERVER then
 function STATE:Ended(pl, newstate)
-	if newstate == STATE_NONE then
+	if newstate == STATE_MOVEMENT then
 		for _, tr in ipairs(pl:GetTargets()) do
 			local hitent = tr.Entity
 			if hitent:IsPlayer() and (hitent.CrossCounteredBy ~= pl or CurTime() >= (hitent.CrossCounteredTime or -math.huge) + 1) then

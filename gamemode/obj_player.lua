@@ -51,7 +51,7 @@ local IN_FORWARD = IN_FORWARD
 ---@return boolean
 function PlayerController:CanCharge()
     local ply = self.ply
-    return ply:GetState() == STATE_NONE and ply:GetStateInteger() == 0
+    return ply:GetState() == STATE_MOVEMENT and ply:GetStateInteger() == 0
     and ply:OnGround() and not ply:Crouching() and not ply:IsCarrying() and ply:WaterLevel() <= 1
     and (CLIENT and LocalPlayer() ~= ply or ply:KeyDown(IN_FORWARD))
     and ply:GetVelocity():LengthSqr() >= SPEED_CHARGE_SQR
@@ -71,14 +71,14 @@ function PlayerController:FixModelAngles(velocity)
     ply:SetPoseParameter("move_yaw", math.NormalizeAngle(velocity:Angle().yaw - eye.y))
 end
 
---- End the current state (return to STATE_NONE). Client-side only runs for LocalPlayer.
+--- End the current state (return to STATE_MOVEMENT). Client-side only runs for LocalPlayer.
 --- Maps to: C# state machine transition → `SetState(State.None)`
 ---@param nocallended? boolean If true, skip calling the state's OnEnded callback
 function PlayerController:EndState(nocallended)
     local ply = self.ply
     -- Client side check for MySelf parity
     if CLIENT and ply ~= LocalPlayer() then return end
-    ply:SetState(STATE_NONE, nil, nil, nocallended)
+    ply:SetState(STATE_MOVEMENT, nil, nil, nocallended)
 end
 
 -- ============================================================================
