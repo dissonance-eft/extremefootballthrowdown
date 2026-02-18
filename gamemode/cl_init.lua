@@ -1147,39 +1147,68 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 	local targetroll = 0
 
 	if not GetGlobalBool("InRound", true) then
-		local viewent = self:GetBall()
-		if viewent:IsValid() then
-			local lerp = 1
-			if self.RoundEndCameraTime then
-				lerp = math.Clamp(RealTime() - self.RoundEndCameraTime, 0, 1) ^ 0.5
+		local ball = self:GetBall()
+		if IsValid(ball) then
+			local target = ball
+			local carrier = ball.GetCarrier and ball:GetCarrier() or nil
+			if IsValid(carrier) then target = carrier end
+
+			local targetPos = target:LocalToWorld(target:OBBCenter())
+			local targetVel = target:GetVelocity()
+			local speed2D = targetVel:Length2D()
+
+			-- Initialize Smooth Camera if not active
+			if not self.SpecCamPos or not self.SpecCamActive then
+				self.SpecCamPos = targetPos
+				self.SpecCamActive = true
+				self.SpecCamYaw = angles.yaw
+				self.SpecCamDist = 380
+				self.SpecCamPitch = 22
 			end
 
-			local carrier = viewent.GetCarrier and viewent:GetCarrier() or nil
-			if carrier and carrier:IsValid() then viewent = carrier end
+			-- Broadcast-style focus logic (same as Spectator Cam)
+			local leadAmount = math.Clamp(speed2D * 0.15, 0, 80)
+			local leadDir = speed2D > 50 and targetVel:GetNormalized() or Vector(0, 0, 0)
+			local focusTarget = targetPos + leadDir * leadAmount
 
-			origin:Set(viewent:LocalToWorld(viewent:OBBCenter()) * lerp + origin * (1 - lerp))
+			local focusLerp = FrameTime() * 3.5
+			self.SpecCamPos = LerpVector(focusLerp, self.SpecCamPos, focusTarget)
 
-			local ang = Angle(-25, CurTime() * 25, 0)
-			-- Use cached player list if available, or just fetch it (optimization: update cache in Think?)
-			-- For now, we'll keep player.GetAll() but wrapped in a check or cached in a future update.
-			-- Actually, standard GMod practice for simple cams is usually just individual player filter?
-			-- Let's stick to player.GetAll() but acknowledge it.
-			local tr = util.TraceHull({start = origin, endpos = origin + ang:Forward() * lerpdist, mask = MASK_SOLID_BRUSHONLY, filter = player.GetAll(), mins = EyeHullMins, maxs = EyeHullMaxs})
-			local hitpos = tr.Hit and tr.HitPos + (tr.HitPos - origin):GetNormalized() * 4 or tr.HitPos
+			if speed2D > 50 then
+				local moveYaw = targetVel:Angle().yaw
+				if not self.SpecCamYaw then self.SpecCamYaw = moveYaw end
+				local diff = math.AngleDifference(moveYaw, self.SpecCamYaw)
+				self.SpecCamYaw = self.SpecCamYaw + diff * FrameTime() * 1.5
+			end
+
+			local targetPitch = 18 + speed2D * 0.012
+			targetPitch = math.Clamp(targetPitch, 16, 30)
+			self.SpecCamPitch = Lerp(FrameTime() * 1.5, self.SpecCamPitch, targetPitch)
+
+			local targetDist = 350 + speed2D * 0.12
+			self.SpecCamDist = Lerp(FrameTime() * 2.0, self.SpecCamDist, targetDist)
+
+			local camAng = Angle(self.SpecCamPitch, self.SpecCamYaw or 0, 0)
+			local camPos = self.SpecCamPos - camAng:Forward() * self.SpecCamDist
+
+			-- Trace to prevent clipping
+			local tr = util.TraceHull({
+				start = self.SpecCamPos,
+				endpos = camPos,
+				mask = MASK_SOLID_BRUSHONLY,
+				mins = Vector(-8, -8, -8),
+				maxs = Vector(8, 8, 8),
+				filter = {ball, carrier, pl}
+			})
 
 			if tr.Hit then
-				lerpdist = math_min(lerpdist, hitpos:Distance(origin))
-			else
-				lerpdist = math_min(256, lerpdist + FrameTime() * 300)
+				camPos = tr.HitPos + tr.HitNormal * 8
 			end
 
-			origin = hitpos
+			local viewAng = (self.SpecCamPos - camPos):Angle()
+			viewAng.r = 0
 
-			ang.pitch = 0
-			ang:RotateAroundAxis(ang:Up(), 180)
-			angles = ang
-
-			return self.BaseClass.CalcView(self, pl, origin, angles, fov, znear, zfar)
+			return self.BaseClass.CalcView(self, pl, camPos, viewAng, fov, znear, zfar)
 		end
 	end
 	
@@ -1375,7 +1404,7 @@ function GM:GenerateMinimapMaterial(redgoal, bluegoal)
 	ang:RotateAroundAxis(ang:Forward(), -90)
 
 	MinimapCamera.angles = ang
-	MinimapCamera.origin = center + Vector(0, 0, 16000)
+	MinimapCamera.origin = center + Vector(0, 0, 2500)
 	MinimapCamera.x = 0
 	MinimapCamera.y = 0
 	MinimapCamera.w = 1024
