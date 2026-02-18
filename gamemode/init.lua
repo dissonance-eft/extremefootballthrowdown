@@ -305,13 +305,16 @@ function GM:PlayerDeath(victim, inflictor, attacker)
 		return
 	end
 
-	-- Bot Suicide Suppression (User Request)
+    -- Bot Suicide Suppression (User Request)
     -- If a bot dies by suicide/world (inflictor is self or world), do not broadcast death notice
     if victim:IsBot() and (victim == attacker or not IsValid(attacker)) then
-        -- Still run logic but return before BaseClass to suppress notice?
-        -- GMod's PlayerDeath prints via BaseClass usually.
-        -- Actually, we need to run our logic first (drop ball etc) then return.
-        -- Let's check where BaseClass is called. It's at the end.
+		-- Manually handle death housekeeping if needed, or just let DoPlayerDeath handle it
+		-- If we skip BaseClass.PlayerDeath, we skip the print and the Net message.
+		-- We SHOULD ensure DoPlayerDeath logic (if any) is preserved.
+		-- But BaseClass.PlayerDeath mostly just prints.
+		victim.NextSpawnTime = CurTime() + 2
+		victim.DeathTime = CurTime()
+		return -- Skip base call
     end
 	
 	if attacker == victim or not attacker:IsValid() or not attacker:IsPlayer() then
