@@ -31,18 +31,13 @@ include("cl_postprocess.lua")
 
 include("vgui/dex3dnotification.lua")
 
--- Suppress "Player has joined the game" for Bots
+-- Suppress ALL join/leave/team change messages for bots
+-- Bot names always end in "Bot" (ViperBot, CobraBot, etc.)
 hook.Add("ChatText", "SuppressBotJoinLeave", function(index, name, text, type)
 	if type == "joinleave" then
-		-- Check if the name belongs to a bot
-		-- Note: player.GetBots() might not be updated *immediately* on join, but usually sufficient.
-		-- Alternatively, check simple string patterns or assume all join/leave spam is undesirable in this mode.
-		-- For now, iterate bots:
-		for _, bot in ipairs(player.GetBots()) do
-			if bot:Nick() == name then return true end
-		end
-		-- Also suppress if the text explicitly says "Bot" (common convention)
-		if string.find(name, "Bot") then return true end
+		if string.EndsWith(name, "Bot") then return true end
+		-- Also check the full text for bot names (disconnect messages use full text)
+		if string.find(text, "Bot", 1, true) then return true end
 	end
 end)
 
@@ -1607,19 +1602,25 @@ function GM:DrawGameStateHUD()
 	local centerX = w / 2
 	local centerY = h / 2  -- True center for all displays
 
-	-- Clear local RoundWinner when server clears the round result (new round starting)
-	-- Only clear if we are in the Pre-Round phase (RoundStartTime > CurTime)
-	-- This prevents flickering during the split-second between 'TeamScored' net msg and 'RoundResult' global update
-	if self.RoundWinner and GetGlobalInt("RoundResult", 0) == 0 and GetGlobalBool("InRound", false) and GetGlobalFloat("RoundStartTime", 0) > CurTime() then
-		self.RoundWinner = nil
+	-- Clear local RoundWinner when server signals new round
+	-- More aggressive clearing: if the server says no result AND round is active, clear immediately.
+	-- This prevents the goal HUD from getting stuck on some clients due to network timing.
+	if self.RoundWinner then
+		local noResult = GetGlobalInt("RoundResult", 0) == 0
+		local inRound = GetGlobalBool("InRound", false)
+		if noResult and inRound then
+			self.RoundWinner = nil
+			self.RoundScorer = nil
+			self.RoundHomeRun = nil
+		end
 	end
 
 	if self.GameWinner then
 		local winnerName = team.GetName(self.GameWinner)
 		local winnerColor = team.GetColor(self.GameWinner)
 
-		draw.SimpleText("GAME OVER", "EFTGoalTextLarge", centerX, centerY - 50, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-		draw.SimpleText(winnerName .. " WIN!", "EFTScorerName", centerX, centerY + 50, winnerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText("GAME OVER", "EFTGoalTextLarge", centerX, centerY - 80, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText(winnerName .. " WIN!", "EFTScorerName", centerX, centerY + 100, winnerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
 	elseif self.RoundWinner then
 		local winnerColor = team.GetColor(self.RoundWinner)
@@ -1637,8 +1638,8 @@ function GM:DrawGameStateHUD()
 			text = self.RoundHomeRun and "HOME RUN!!" or "GOAL!"
 		end
 
-		draw.SimpleText(text, "EFTGoalTextLarge", centerX, centerY - 50, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-		draw.SimpleText(scorerName, "EFTScorerName", centerX, centerY + 50, winnerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText(text, "EFTGoalTextLarge", centerX, centerY - 80, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText(scorerName, "EFTScorerName", centerX, centerY + 100, winnerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 
 	-- Position text above the timer box (same position for both)
@@ -1737,14 +1738,14 @@ surface.CreateFont("EFTGoalText", {
 
 surface.CreateFont("EFTGoalTextLarge", {
 	font = "Patua One",
-	size = 180,
+	size = 360,
 	weight = 1000,
 	antialias = true
 })
 
 surface.CreateFont("EFTScorerName", {
 	font = "Patua One",
-	size = 100,
+	size = 300,
 	weight = 700,
 	antialias = true
 })
@@ -1796,18 +1797,17 @@ function GM:DrawScoreboard()
     local roundStartedAt = GetGlobalFloat("RoundStartedAt", 0) -- When round actually started
     local roundEndsAt = GetGlobalFloat("RoundEndsAt", 0) -- Absolute end timestamp (SINGLE SOURCE OF TRUTH)
     local roundDuration = GetGlobalFloat("RoundDuration", self.GameLength * 60) -- For reference
-    local gameTimeRemaining = GetGlobalFloat("GameTimeRemaining", 0) -- Saved time from goal
+    local gameTimeRemaining = GetGlobalFloat("GameTimeRemaining", 0) -- Server-saved time at moment of goal
     local roundNum = GetGlobalInt("RoundNumber", 1)
     local isPreRound = roundStartTime > CurTime() and not isWarmup
     
     if isWarmup then
     	-- During warmup, show warmup countdown
     	timeleft = math.max(0, self.WarmUpLength - CurTime())
-    elseif isCelebration then
-    	-- During goal celebration, freeze timer at last known value
-    	timeleft = self.FrozenTimeLeft or gameTimeRemaining or roundDuration
-    elseif isPreRound then
-    	-- During pre-round countdown, show saved time (or full if round 1)
+    elseif isCelebration or isPreRound then
+    	-- During goal celebration OR pre-round: show the server's saved time.
+    	-- GameTimeRemaining is set by the server at the exact moment of the goal.
+    	-- This is the single source of truth — no client-side snapshot needed.
     	if roundNum == 1 or gameTimeRemaining <= 0 then
     		timeleft = self.GameLength * 60
     	else
@@ -1821,11 +1821,6 @@ function GM:DrawScoreboard()
     	timeleft = roundDuration
     end
     timeleft = math.max(0, timeleft)
-    
-    -- Store the current time for freezing during celebrations
-    if not isCelebration and not isPreRound and not isWarmup then
-    	self.FrozenTimeLeft = timeleft
-    end
     
     local timeStr = string.ToMinutesSeconds(timeleft)
 
@@ -1984,9 +1979,7 @@ function GM:TeamScored(teamid, hitter, points, homerun)
 	if not MySelf:IsValid() then return end
 
 	if teamid == MySelf:Team() or not team.Joinable(MySelf:Team()) then
-		-- surface.PlaySound("eft/touchdown.ogg") -- Removed legacy sound (s4 goal sounds used instead)
 	else
-		-- surface.PlaySound("eft/touchdown.ogg")
 	end
 
 	self.RoundWinner = teamid
@@ -2130,23 +2123,3 @@ function GM:Base_HUDShouldDraw( name )
 	return true
 end
 
--- Suppress bot join/leave/team change chat messages
--- Bots should be invisible members of the gamemode
-hook.Add("ChatText", "EFTSuppressBotChat", function(index, name, text, msgtype)
-	-- "joinleave" type covers both join and disconnect messages
-	if msgtype == "joinleave" then
-		-- Check if the player is a bot by checking against connected players
-		for _, ply in ipairs(player.GetAll()) do
-			if ply:IsBot() and string.find(text, ply:Nick(), 1, true) then
-				return true -- Block the message
-			end
-		end
-		-- Also catch disconnect messages (bot may already be removed from player list)
-		-- Bot names use NATO phonetic alphabet + number (e.g. "Alpha 42", "EFTBot 7")
-		for _, prefix in ipairs({"Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India", "Juliet", "Kilo", "Lima", "Mike", "November", "Oscar", "Papa", "Quebec", "Romeo", "Sierra", "Tango", "Uniform", "Victor", "EFTBot"}) do
-			if string.find(text, prefix, 1, true) then
-				return true
-			end
-		end
-	end
-end)

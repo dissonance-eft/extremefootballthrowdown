@@ -42,7 +42,7 @@ function GameManager:ctor()
     self.RoundLimit = 10
     self.RoundLength = 60 * 15 -- 15 minutes
     self.RoundPreStartTime = 5
-    self.RoundPostLength = 5
+    self.RoundPostLength = 6
     self.VotingDelay = 15
 
     self.Overtime = false

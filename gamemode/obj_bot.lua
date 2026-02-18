@@ -48,12 +48,12 @@ Bot.TURN_RATE_FIRM = 6.0      ---@type number Degrees per tick: fast correction
 Bot.TURN_RATE_LAST_RESORT = 10.0 ---@type number Degrees per tick: emergency
 Bot.WALL_LOOK_DIST = 600      ---@type number Units: forward ray distance for wall detection
 Bot.CHARGE_THRESHOLD = 300     ---@type number Units: distance to enter charge behavior
-Bot.CARRIER_WEAVE_AMP = 80    ---@type number Units: lateral weave amplitude when carrying ball
-Bot.CARRIER_WEAVE_FREQ = 1.2  ---@type number Hz: weave oscillation frequency
+Bot.CARRIER_WEAVE_AMP = 200    ---@type number Units: lateral weave amplitude when carrying ball
+Bot.CARRIER_WEAVE_FREQ = 2.0  ---@type number Hz: weave oscillation frequency
 Bot.BODYWALL_SPEED = 120      ---@type number Speed threshold: if below this with enemy ahead, punch
 Bot.THROW_RANGE_IDEAL = 800   ---@type number Units: ideal distance to stop and throw at goal
 Bot.THROW_RANGE_MAX = 1800    ---@type number Units: max believable throw distance
-Bot.THROW_GRAVITY = 300       ---@type number Custom throw gravity (from throw.lua PreDraw3DHUD)
+Bot.THROW_GRAVITY = 600       ---@type number EFT sv_gravity (600 HU/s²)
 
 -- AI States
 Bot.STATE_IDLE = 0       ---@type number Standing still / no objective
@@ -232,12 +232,13 @@ end
 ---@param fromPos Vector Throw origin (bot's shoot position)
 ---@param toPos Vector Target position (goal center)
 ---@param throwForce number Total throw force (default ~1100)
+---@param preferHighArc boolean? If true, prefer the high lob arc (theta2)
 ---@return number? pitch Pitch angle in degrees (negative = up), or nil if impossible
 ---@return number? flightTime Estimated flight time in seconds
-local function CalcThrowPitch(fromPos, toPos, throwForce)
+local function CalcThrowPitch(fromPos, toPos, throwForce, preferHighArc)
     local dx = math.sqrt((toPos.x - fromPos.x)^2 + (toPos.y - fromPos.y)^2) -- horizontal distance
     local dz = toPos.z - fromPos.z -- height difference (positive = target above us)
-    local g = Bot.THROW_GRAVITY -- 300 (custom throw gravity from throw.lua)
+    local g = Bot.THROW_GRAVITY -- 600 HU/s² (EFT sv_gravity)
     local v = throwForce -- total velocity magnitude
     
     if dx < 1 then
@@ -276,8 +277,8 @@ local function CalcThrowPitch(fromPos, toPos, throwForce)
     
     -- Pick the better arc: prefer low arc if reasonable, fallback to high arc for elevated targets
     local pitch
-    if dz > 100 then
-        -- Target is elevated (goal ring above us) — use the high arc to clear the rim
+    if dz > 100 or preferHighArc then
+        -- Target is elevated or we explicitly want a high lob
         pitch = -theta2
     else
         -- Use low arc for speed
@@ -451,18 +452,22 @@ end
 function Bot:Think()
     if not self:IsValid() or not self.ply:Alive() then return end
 
-    -- During preround: stand still, no AI
-    if self.ply:GetState() == STATE_PREROUND then
-        self.state = Bot.STATE_IDLE
-        return
-    end
-
-    -- During warmup: cycle through celebration dances
-    if GAMEMODE:IsWarmUp() then
+    -- During preround, post-round, or warmup: dance, no AI
+    local isIdle = self.ply:GetState() == STATE_PREROUND
+                   or (not GAMEMODE:InRound() and not GAMEMODE:IsWarmUp())
+                   or GAMEMODE:IsWarmUp()
+    if isIdle then
         self.state = Bot.STATE_IDLE
         if not self.nextDanceTime or CurTime() >= self.nextDanceTime then
-            local acts = {"robot", "dance", "muscle", "laugh", "cheer", "zombie", "bow", "wave"}
-            self.ply:ConCommand("act " .. table.Random(acts))
+            -- Force a taunt animation directly (ConCommand 'act' is sandbox-only)
+            local seqs = {"taunt_robot", "taunt_dance", "taunt_muscle", "taunt_laugh",
+                          "taunt_cheer", "taunt_persistence", "taunt_zombie"}
+            local seq = self.ply:LookupSequence(table.Random(seqs))
+            if seq and seq > 0 then
+                self.ply:SetSequence(seq)
+                self.ply:SetPlaybackRate(1)
+                self.ply:ResetSequenceInfo()
+            end
             self.nextDanceTime = CurTime() + 3 + math.random() * 2
         end
         return
@@ -714,7 +719,9 @@ function Bot:ExecuteState()
                 targetPos = actualGoalPos + perpDir * lateralOffset
 
                 if distToGoal < 300 then
-                    targetPos = actualGoalPos
+                    -- Run THROUGH the goal, not TO it. Project past center to avoid hesitation.
+                    -- trigger_goal is a volume — we need to enter it, not stand at its edge.
+                    targetPos = actualGoalPos + toGoalDir * 50
                 end
             end
 
@@ -781,7 +788,7 @@ function Bot:ExecuteState()
             if not goalIsThrowOnly and not self.wantReload and self.throwState == nil and curTime > self.throwCooldown then
                 if blockersInPath >= 2 and distToGoal > 500 then
                     local throwTarget = FindThrowTarget(self.ply, actualGoalPos)
-                    if throwTarget and math.random() < 0.05 then
+                    if throwTarget and math.random() < 0.15 then
                         self.throwState = "winding"
                         self.throwStart = curTime
                         self.throwDuration = 0.5 + math.random() * 0.7
@@ -836,8 +843,14 @@ function Bot:ExecuteState()
 
                         self.targetYaw = finalYaw + curveOffset
 
-                        local loftPitch = math.Clamp(-65 - dist * 0.02, -80, -45)
-                        self.targetPitch = loftPitch
+                        -- Use accurate physics arc (High Lob) instead of heuristic
+                        local calcPitch, _ = CalcThrowPitch(botPos, leadPos, 1100, true)
+                        if calcPitch then
+                            self.targetPitch = calcPitch
+                        else
+                             -- Fallback if out of range
+                            self.targetPitch = -45
+                        end
                     end
                 end
 
@@ -983,8 +996,8 @@ function Bot:CheckStuck()
     if speed < 50 and onGround then
         if self.stuckSince == 0 then
             self.stuckSince = CurTime()
-        elseif CurTime() > self.stuckSince + 0.5 then
-            -- If stuck for > 0.5s, check if it's a player blocking us
+        elseif CurTime() > self.stuckSince + 0.75 then
+            -- If stuck for > 0.75s, check if it's a player blocking us
             local tr = util.TraceLine({
                 start = self.ply:GetPos() + Vector(0,0,40),
                 endpos = self.ply:GetPos() + self.ply:GetForward() * 50,
@@ -998,7 +1011,7 @@ function Bot:CheckStuck()
                 end
             end
             
-            -- Reset timer to avoid spamming every tick (only punch every 0.5s if still stuck)
+            -- Reset timer to avoid spamming every tick (only punch every 0.75s if still stuck)
             self.stuckSince = 0 
         end
     -- Body wall: moving slowly with enemy blocking ahead (teammates pass through)
@@ -1022,9 +1035,10 @@ function Bot:CheckStuck()
         end
 
         -- Punch to escape body wall (enemy standing in our path, delayed reaction)
+        -- Only punch after being blocked for 0.75s to avoid spammy behavior
         if blockingCount >= 1 then
             if self.punchReactAt == 0 then
-                self.punchReactAt = CurTime() + 0.25 + math.random() * 0.5
+                self.punchReactAt = CurTime() + 0.75
             elseif CurTime() >= self.punchReactAt then
                 self.wantPunch = true
                 self.punchReactAt = 0
@@ -1142,33 +1156,11 @@ end
 
 --- Apply wall avoidance and The Curve (P-060) to the current target yaw.
 function Bot:ApplyMovement()
-    -- Try to punch obstacles (NO JUMPING allowed per user request)
-    -- If something is blocking us at waist height or higher, PUNCH IT.
-    -- DetectJumpableObstacle logic removed to prevent jumping.
+    -- Punch logic is handled by CheckStuck (0.75s blocked timer).
+    -- No proactive punching here — bots only punch when genuinely stuck.
     
     local fwdDir = Angle(0, self.targetYaw, 0):Forward()
     local botPos = self.ply:GetPos()
-
-    -- Check for punchable obstacle (player or prop) right in front
-    local trPunch = util.TraceLine({
-        start = botPos + Vector(0,0,36),
-        endpos = botPos + Vector(0,0,36) + fwdDir * 60,
-        filter = self.ply,
-        mask = MASK_PLAYERSOLID
-    })
-
-    if trPunch.Hit and IsValid(trPunch.Entity) then
-        -- Only punch if it's a player blocking us (user confirmed no breakables exist)
-        if trPunch.Entity:IsPlayer() then
-             -- CARRIER LOGIC: Never punch, just run around or pass
-             if self.state == Bot.STATE_CARRIER then
-                 self.wantPunch = false
-             -- DEFENDER LOGIC: Reduced punch frequency (don't spam)
-             elseif math.random() < 0.1 then -- Reduced from instantaneous/constant
-                 self.wantPunch = true
-             end
-        end
-    end
 
     -- Gap/Pit Detection (OR NavMesh Jump)
     local shouldJump, avoidPit, gapOffset = self:AnalyzeFloor(self.targetYaw)

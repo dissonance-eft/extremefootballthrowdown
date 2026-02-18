@@ -380,7 +380,7 @@ Key properties:
 | ALWAYS ends in knockdown | Yes (diver becomes vulnerable) |
 | Hit reward | -0.5s recovery (faster getup) |
 | Miss penalty | +0.5s recovery (slower getup) |
-| Turn rate during dive | 25% of normal mouse input |
+| Turn rate during dive | Rate-limited: 90°/sec (via util.LimitTurning) |
 | Crouching during dive | Disabled (IN_DUCK stripped) |
 | Can pick up ball | Yes (if touched during dive) |
 
@@ -505,7 +505,7 @@ Key properties:
 | Post-goal slow-motion | 2.5s at 0.1x time scale |
 | Timer suppress after throw | 5 seconds grace period |
 
-**After score:** Slow-motion celebration -> ball resets to center -> auto-respawn after 4s (countdown HUD + muffled DSP) -> play resumes.
+**After score:** Slow-motion celebration -> ball resets to center -> 6s post-round celebration -> 5s pre-round freeze -> play resumes.
 
 *   **Supports Concepts:** C-001, C-004
 
@@ -521,7 +521,7 @@ Key properties:
 | Spawn freeze | 2.0s (anchored) |
 | Spawn ghost | 1.5s (no collision) |
 
-**BonusTime (Timer Sync):** After each goal, celebration + pre-round time (~8s) is added back to the game clock. This ensures the round timer only counts live play time.
+**BonusTime (Timer Sync):** After each goal, celebration + pre-round time (~11s) is added back to the game clock. This ensures the round timer only counts live play time.
 
 ### 16. Pity Mechanic <!-- id: M-198 -->
 
@@ -1205,7 +1205,7 @@ IF enemy has ball -> ALL CHASE CARRIER:
 
 **Risky Passing & Hail Marys:**
 - Hail Mary: If blocked and far from goal, throw high (-60 deg pitch) toward goal
-- Risky Pass: If blocked by 2+ enemies, 5% chance to lead pass to teammate
+- Risky Pass: If blocked by 2+ enemies, 15% chance to lead pass to teammate
 - All passes use -45 degree pitch to lob over defenders
 
 **Intelligent Pathfinding:**
@@ -1271,7 +1271,7 @@ dive:
   recovery_modifier:
     hit_success: -0.5
     miss_whiff: 0.5
-  turn_rate: 0.25
+  turn_rate: "90 deg/sec (rate-limited via util.LimitTurning)"
   crouching: disabled
 
 punch:
@@ -1438,10 +1438,11 @@ excluded:
 | `eft_bots_enabled` | `1` | Enable bot players |
 | `eft_dev` | `0` | Enable debug overlays for bot AI |
 | `eft_bots_skill` | `1.0` | Bot skill multiplier (0.1-2.0) |
-| `eft_bots_count` | `6` | Target players per team (bots fill empty slots) |
+| `eft_bots_count` | `10` | Target total players (bots fill empty slots, split per team) |
 | `fretta_voting` | `1` | Enable end-of-game voting |
 | `fretta_votesneeded` | `0.75` | Fraction of votes needed to win |
 | `fretta_votetime` | `20` | Vote duration in seconds |
+| `sv_gravity` | `600` | EFT uses reduced gravity (Source default is 800) |
 
 ### Client ConVars
 
