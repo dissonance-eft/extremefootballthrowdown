@@ -22,7 +22,14 @@ function ENT:KeyValue(key, value)
 	elseif key == "scoretype" then
 		self.m_ScoreType = tonumber(value) or SCORETYPE_TOUCH
 	elseif key == "teamid" then
-		self:SetTeamID(tonumber(value) or TEAM_RED)
+		local val = value
+		if type(val) == "string" then
+			local lower = string.lower(val)
+			if string.find(lower, "red") or string.find(lower, "terrorist") or string.find(lower, "rebels") then val = TEAM_RED
+			elseif string.find(lower, "blue") or string.find(lower, "ct") or string.find(lower, "combine") then val = TEAM_BLUE
+			else val = tonumber(value) end
+		end
+		self:SetTeamID(val or TEAM_RED)
 	elseif key == "enabled" then
 		self.Enabled = tonumber(value) == 1
 	end

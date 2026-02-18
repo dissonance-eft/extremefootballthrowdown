@@ -1188,67 +1188,51 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 		local ball = self:GetBall()
 		if IsValid(ball) then
 			local target = ball
-			local carrier = ball:GetCarrier()
+			local carrier = ball.GetCarrier and ball:GetCarrier() or nil
 			if IsValid(carrier) then target = carrier end
 
 			local targetPos = target:LocalToWorld(target:OBBCenter())
+			local targetVel = target:GetVelocity()
+			local speed2D = targetVel:Length2D()
 
-			-- On first frame or mode switch: snap to target to avoid lerping from origin
+			-- On first frame or mode switch: snap to prevent lerp from origin
 			if not self.SpecCamPos or not self.SpecCamActive then
 				self.SpecCamPos = targetPos
 				self.SpecCamActive = true
-				-- Initialize yaw from current view to prevent angle snap
 				self.SpecCamYaw = angles.yaw
-				self.SpecCamDist = 350
+				self.SpecCamDist = 380
+				self.SpecCamPitch = 22
 			end
 
-			-- Smooth focus position (broadcast style: camera lags behind action)
-			-- Use higher lerp rate (5.0) for responsive tracking, avoids stutter on settle
-			local lerpRate = FrameTime() * 5.0
-			self.SpecCamPos = LerpVector(lerpRate, self.SpecCamPos, targetPos)
+			-- Broadcast-style focus: camera tracks a point slightly AHEAD of the target
+			-- This creates the "cameraman anticipating the play" feel
+			local leadAmount = math.Clamp(speed2D * 0.15, 0, 80)
+			local leadDir = speed2D > 50 and targetVel:GetNormalized() or Vector(0, 0, 0)
+			local focusTarget = targetPos + leadDir * leadAmount
 
-			-- MANUAL LOOK: detect mouse movement
-			if self.LastSpecAngles then
-				local yawDelta = math.abs(math.AngleDifference(angles.yaw, self.LastSpecAngles.yaw))
-				local pitchDelta = math.abs(math.AngleDifference(angles.pitch, self.LastSpecAngles.pitch))
-				if yawDelta > 0.1 or pitchDelta > 0.1 then
-					self.LastSpecInput = RealTime()
-					self.SpecCamYaw = angles.yaw
-					self.SpecCamPitch = angles.pitch
-				end
-			end
-			self.LastSpecAngles = Angle(angles.p, angles.y, 0) -- Copy, not reference
+			-- Smooth focus position (lazy tracking — camera drifts behind action)
+			local focusLerp = FrameTime() * 3.5
+			self.SpecCamPos = LerpVector(focusLerp, self.SpecCamPos, focusTarget)
 
-			local isManual = (RealTime() - (self.LastSpecInput or 0)) < 3.0
-
-			-- Dynamic distance: pull back based on speed
-			local targetDist = 350 + target:GetVelocity():Length() * 0.1
-			self.SpecCamDist = Lerp(FrameTime() * 3.0, self.SpecCamDist, targetDist)
-
-			local pitch, yaw
-
-			if isManual then
-				yaw = self.SpecCamYaw or angles.yaw
-				pitch = math.Clamp(self.SpecCamPitch or angles.pitch, -89, 89)
-			else
-				-- Auto broadcast mode: follow target velocity direction
-				pitch = 25
-
-				local vel = target:GetVelocity()
-				if vel:Length2D() > 50 then
-					local moveYaw = vel:Angle().yaw
-					if not self.SpecCamYaw then self.SpecCamYaw = moveYaw end
-
-					local diff = math.AngleDifference(moveYaw, self.SpecCamYaw)
-					-- Smooth yaw tracking (2.5 = responsive but not twitchy)
-					self.SpecCamYaw = self.SpecCamYaw + diff * FrameTime() * 2.5
-				end
-				-- If stopped: hold last angle (no else needed, SpecCamYaw persists)
-
-				yaw = self.SpecCamYaw or 0
+			-- Yaw: lazy follow of movement direction (slow sweep, not snappy tracking)
+			if speed2D > 50 then
+				local moveYaw = targetVel:Angle().yaw
+				if not self.SpecCamYaw then self.SpecCamYaw = moveYaw end
+				local diff = math.AngleDifference(moveYaw, self.SpecCamYaw)
+				-- 1.5 = deliberate, cinematic pan (lower = lazier)
+				self.SpecCamYaw = self.SpecCamYaw + diff * FrameTime() * 1.5
 			end
 
-			local camAng = Angle(pitch, yaw, 0)
+			-- Pitch: gentle sway based on speed (higher angle when fast, lower when idle)
+			local targetPitch = 18 + speed2D * 0.012
+			targetPitch = math.Clamp(targetPitch, 16, 30)
+			self.SpecCamPitch = Lerp(FrameTime() * 1.5, self.SpecCamPitch, targetPitch)
+
+			-- Distance: pull back when fast, tighten when slow
+			local targetDist = 350 + speed2D * 0.12
+			self.SpecCamDist = Lerp(FrameTime() * 2.0, self.SpecCamDist, targetDist)
+
+			local camAng = Angle(self.SpecCamPitch, self.SpecCamYaw or 0, 0)
 			local camPos = self.SpecCamPos - camAng:Forward() * self.SpecCamDist
 
 			-- Wall/geometry trace to prevent clipping
@@ -1265,15 +1249,14 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 				camPos = tr.HitPos + tr.HitNormal * 8
 			end
 
-			-- Ensure minimum distance from target to prevent clipping through ball
-			local toCam = camPos - self.SpecCamPos
-			if toCam:Length() < 64 then
+			-- Minimum distance to prevent clipping through ball
+			if (camPos - self.SpecCamPos):Length() < 64 then
 				camPos = self.SpecCamPos - camAng:Forward() * 64
 			end
 
 			-- View angle: always look at the focus point
 			local viewAng = (self.SpecCamPos - camPos):Angle()
-			viewAng.r = 0 -- Kill roll to prevent angle bugs
+			viewAng.r = 0
 
 			return self.BaseClass.CalcView(self, pl, camPos, viewAng, fov, znear, zfar)
 		end
@@ -1284,8 +1267,6 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 		self.SpecCamYaw = nil
 		self.SpecCamPitch = nil
 		self.SpecCamDist = nil
-		self.LastSpecAngles = nil
-		self.LastSpecInput = nil
 	end
 
 	if pl:Alive() and pl:GetObserverMode() == OBS_MODE_NONE then
@@ -1455,15 +1436,41 @@ function GM:DrawMinimap()
 	local pos
 	local lp = LocalPlayer()
 	for _, pl in pairs(player.GetAll()) do
-		if pl:Alive() and pl:GetObserverMode() == OBS_MODE_NONE then
+		if pl:GetObserverMode() == OBS_MODE_NONE then
 			pos = MinimapWorldToScreen(pl:GetPos())
-			if pl == lp then
-				local c = 200 + math.abs(math.sin(CurTime() * 5)) * 55
-				surface.SetDrawColor(c, c, c, 255)
+			
+			local isAlive = pl:Alive()
+			local color = team.GetColor(pl:Team())
+			
+			-- Dead players (Gray X)
+			if not isAlive then
+				surface.SetDrawColor(150, 150, 150, 150)
+				surface.DrawRect(pos.x - 3, pos.y - 3, 6, 6) -- Placeholder for X
 			else
-				surface.SetDrawColor(team.GetColor(pl:Team()))
+				-- Alive players
+				if pl == lp then
+					-- Local Player: Arrow
+					local c = 200 + math.abs(math.sin(CurTime() * 5)) * 55
+					surface.SetDrawColor(c, c, c, 255)
+					
+					-- Simple Arrow Logic (Visual approximation)
+					-- Using a Rotated Rect for now, effectively a bar indicating direction?
+					-- Or just a larger square with a line?
+					-- Let's stick to a distinctive Square for reliability + Direction line
+					surface.DrawRect(pos.x - 4, pos.y - 4, 8, 8)
+					
+					-- Direction indicator
+					local ang = pl:EyeAngles().y
+					local rad = math.rad(ang - MinimapCamera.angles.y + 90) -- Adjust for map rotation
+					local dirX = math.cos(rad) * 8
+					local dirY = math.sin(rad) * 8
+					
+					surface.DrawLine(pos.x, pos.y, pos.x + dirX, pos.y - dirY)
+				else
+					surface.SetDrawColor(color.r, color.g, color.b, 255)
+					surface.DrawRect(pos.x - 3, pos.y - 3, 6, 6)
+				end
 			end
-			surface.DrawRect(pos.x - 2, pos.y - 2, 4, 4)
 		end
 	end
 

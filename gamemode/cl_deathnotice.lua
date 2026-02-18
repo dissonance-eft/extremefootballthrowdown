@@ -7,17 +7,9 @@
 include( 'vgui/vgui_gamenotice.lua' )
 
 local function CreateDeathNotify()
-
-	local x, y = ScrW(), ScrH()
-
-	g_DeathNotify = vgui.Create( "DNotify" )
-	
-	g_DeathNotify:SetPos( 0, 25 )
-	g_DeathNotify:SetSize( x - ( 25 ), y )
-	g_DeathNotify:SetAlignment( 9 )
-	g_DeathNotify:SetLife( 4 )
-	g_DeathNotify:ParentToHUD()
-
+	-- Death/possession notices disabled for EFT.
+	-- The top-right notice panel creates visual noise that doesn't fit the sport genre.
+	-- All AddDeathNotice/AddPlayerAction calls safely no-op because g_DeathNotify is nil.
 end
 
 hook.Add( "InitPostEntity", "CreateDeathNotify", CreateDeathNotify )

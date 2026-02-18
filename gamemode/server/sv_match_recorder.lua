@@ -1,7 +1,7 @@
 if not SERVER then return end
--- MANIFEST LINKS:
--- Mechanics: M-050 (Game Flow - Recording)
--- Principles: P-080 (Data - Metrics)
+/// MANIFEST LINKS:
+/// Mechanics: M-050 (Game Flow - Recording)
+/// Principles: P-080 (Data - Metrics)
 
 -- Match Recorder Module
 -- Records semantic gameplay events for post-match analysis.
@@ -49,15 +49,16 @@ function RECORDING:EndMatch()
     self.MatchData.duration = CurTime() - self.StartTime
 
 	local json = util.TableToJSON(self.MatchData, true)
-	if not json then
-		print("[MatchRecorder] Failed to serialize match data!")
-		return
-	end
 
-	local filename = string.format("%s/match_%s_%s.json", REPLAY_DIR, os.date("%Y%m%d"), os.date("%H%M%S"))
-	file.Write(filename, json)
+    if not file.Exists(REPLAY_DIR, "DATA") then
+        file.CreateDir(REPLAY_DIR)
+    end
+
+    local timestamp = os.date("%Y%m%d_%H%M%S")
+    local filename = string.format("%s/match_%s.json", REPLAY_DIR, timestamp)
+    file.Write(filename, json)
 	
-	print("[MatchRecorder] Saved replay to " .. filename)
+	print("[MatchRecorder] Saved replay to data/" .. filename)
     self.MatchData = {}
 end
 
@@ -128,6 +129,10 @@ end
 
 hook.Add("Initialize", "InitMatchRecorder", function()
     RECORDING:StartMatch()
+end)
+
+hook.Add("OnEndOfGame", "RecordMatchEnd", function()
+    RECORDING:EndMatch()
 end)
 
 hook.Add("ShutDown", "FinalizeMatchRecorder", function()

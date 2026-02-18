@@ -1,6 +1,6 @@
 "UnlitGeneric"
 {
-	"$basetexture"		"ball_halo"
+	"$basetexture"		"ball_halo_v2"
 	"$transparency" 	"1"
 	"$vertexcolor"      "1"
 	"$vertexalpha"      "1"

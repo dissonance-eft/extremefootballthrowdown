@@ -17,6 +17,11 @@ function STATE:Started(pl, oldstate)
 	pl:SetStateBool(math.random(2) == 1)
 
 	pl:ResetJumpPower(0)
+	
+	if SERVER then
+		pl:SetNoDraw(true)
+		pl:DrawShadow(false)
+	end
 end
 
 function STATE:Restarted(pl)
@@ -34,6 +39,9 @@ function STATE:Ended(pl, newstate)
 		if rag and rag:IsValid() then
 			rag:Remove()
 		end
+
+		pl:SetNoDraw(false)
+		pl:DrawShadow(true)
 	end
 end
 

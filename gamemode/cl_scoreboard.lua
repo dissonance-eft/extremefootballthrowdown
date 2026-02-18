@@ -14,15 +14,22 @@ surface.CreateFont("EFTScoreboardTitle", {
 
 surface.CreateFont("EFTScoreboardTeam", {
 	font = "Patua One",
-	size = 60,
+	size = 84,
 	weight = 500,
 	antialias = true
 })
 
 surface.CreateFont("EFTScoreboardScore", {
 	font = "Patua One",
-	size = 80,
+	size = 100,
 	weight = 700,
+	antialias = true
+})
+
+surface.CreateFont("EFTScoreboardSpectator", {
+	font = "Patua One",
+	size = 32,
+	weight = 500,
 	antialias = true
 })
 
@@ -73,13 +80,13 @@ function PANEL:Think()
 	self.Spectators = {}
 
 	for _, ply in ipairs(team.GetPlayers(TEAM_RED)) do
-		if not ply:IsBot() then table.insert(self.RedPlayers, ply) end
+		table.insert(self.RedPlayers, ply)
 	end
 	for _, ply in ipairs(team.GetPlayers(TEAM_BLUE)) do
-		if not ply:IsBot() then table.insert(self.BluePlayers, ply) end
+		table.insert(self.BluePlayers, ply)
 	end
 	for _, ply in ipairs(team.GetPlayers(TEAM_SPECTATOR)) do
-		if not ply:IsBot() then table.insert(self.Spectators, ply) end
+		table.insert(self.Spectators, ply)
 	end
 end
 
@@ -102,16 +109,27 @@ function PANEL:DrawPlayerRow(ply, x, y, w, isLocal)
 	
 	-- Background
 	local bgColor = isLocal and Color(255, 255, 255, 40) or Color(0, 0, 0, 80)
-	draw.RoundedBox(4, x, y, w, rowH, bgColor)
-	
 	-- Avatar
-	if not ply.ScoreboardAvatar then
-		ply.ScoreboardAvatar = vgui.Create("AvatarImage", self)
-		ply.ScoreboardAvatar:SetSize(32, 32)
-		ply.ScoreboardAvatar:SetPlayer(ply, 64)
+	if ply:IsBot() then
+		if not ply.ScoreboardAvatarBot then
+			ply.ScoreboardAvatarBot = vgui.Create("DImage", self)
+			ply.ScoreboardAvatarBot:SetSize(32, 32)
+			ply.ScoreboardAvatarBot:SetImage("icon16/controller.png")
+		end
+		if ply.ScoreboardAvatar then ply.ScoreboardAvatar:SetVisible(false) end
+		ply.ScoreboardAvatarBot:SetPos(x + 6, y + 2)
+		ply.ScoreboardAvatarBot:SetVisible(true)
+	else
+		-- Real Player Avatar
+		if not ply.ScoreboardAvatar then
+			ply.ScoreboardAvatar = vgui.Create("AvatarImage", self)
+			ply.ScoreboardAvatar:SetSize(32, 32)
+			ply.ScoreboardAvatar:SetPlayer(ply, 64)
+		end
+		if ply.ScoreboardAvatarBot then ply.ScoreboardAvatarBot:SetVisible(false) end
+		ply.ScoreboardAvatar:SetPos(x + 6, y + 2)
+		ply.ScoreboardAvatar:SetVisible(true)
 	end
-	ply.ScoreboardAvatar:SetPos(x + 6, y + 2)
-	ply.ScoreboardAvatar:SetVisible(true)
 	
 	-- Name
 	draw.SimpleText(ply:Name(), "EFTScoreboardPlayer", x + 46, y + rowH/2, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
@@ -156,8 +174,8 @@ function PANEL:Paint(w, h)
 	
 	-- Team name centered between logo and score
 	local teamNameCenterX = redX + logoSize + 40 + (teamW - logoSize - 120) / 2
-	draw.SimpleText("Red Rhinos", "EFTScoreboardTeam", teamNameCenterX, teamStartY + 45, team.GetColor(TEAM_RED), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-	draw.SimpleText(team.GetScore(TEAM_RED), "EFTScoreboardScore", redX + teamW - 40, teamStartY + 55, color_white, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+	draw.SimpleText("Red Rhinos", "EFTScoreboardTeam", teamNameCenterX, teamStartY + 60, team.GetColor(TEAM_RED), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+	draw.SimpleText(team.GetScore(TEAM_RED), "EFTScoreboardScore", redX + teamW - 20, teamStartY + 60, color_white, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
 	
 	-- Red Headers
 	local headerY = teamStartY + logoSize + 30
@@ -197,8 +215,8 @@ function PANEL:Paint(w, h)
 	
 	-- Team name centered between logo and score
 	local blueNameCenterX = blueX + logoSize + 40 + (teamW - logoSize - 120) / 2
-	draw.SimpleText("Blue Bulls", "EFTScoreboardTeam", blueNameCenterX, teamStartY + 45, team.GetColor(TEAM_BLUE), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-	draw.SimpleText(team.GetScore(TEAM_BLUE), "EFTScoreboardScore", blueX + teamW - 40, teamStartY + 55, color_white, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+	draw.SimpleText("Blue Bulls", "EFTScoreboardTeam", blueNameCenterX, teamStartY + 60, team.GetColor(TEAM_BLUE), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+	draw.SimpleText(team.GetScore(TEAM_BLUE), "EFTScoreboardScore", blueX + teamW - 20, teamStartY + 60, color_white, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
 	
 	-- Blue Headers
 	draw.SimpleText("Player", "EFTScoreboardHeader", blueX + 46, headerY, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
@@ -226,13 +244,15 @@ function PANEL:Paint(w, h)
 		draw.SimpleText("▼ " .. (#self.BluePlayers - blueEnd) .. " more", "EFTScoreboardHeader", blueX + teamW/2, playerY + 5, Color(200, 200, 200), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
 	end
 	
-	-- Spectators (bottom)
+	-- Spectators (bottom, outside panel)
 	if self.Spectators and #self.Spectators > 0 then
+		DisableClipping(true)
 		local specNames = {}
 		for _, ply in ipairs(self.Spectators) do
 			table.insert(specNames, ply:Name())
 		end
-		draw.SimpleText("Spectators: " .. table.concat(specNames, ", "), "EFTScoreboardHeader", w/2, h - 15, Color(150, 150, 150), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+		draw.SimpleText("Spectators: " .. table.concat(specNames, ", "), "EFTScoreboardSpectator", w/2, h + 25, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+		DisableClipping(false)
 	end
 end
 
