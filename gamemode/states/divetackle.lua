@@ -11,6 +11,7 @@ end
 function STATE:Started(pl, oldstate)
 	--pl:Freeze(true)
 	pl:SetStateEntity(NULL)
+	pl.DiveGuideAngles = nil
 
 	local ang = pl:EyeAngles()
 	ang[1] = 0
@@ -99,14 +100,16 @@ function STATE:CreateMove(pl, cmd)
 		cmd:SetButtons(bit.band(buttons, bit.bnot(IN_DUCK)))
 	end
 	
-	-- Limit mouse turn to 25% of input
-	local ang = cmd:GetViewAngles()
-	local oldAng = pl:EyeAngles()
-	local yawDiff = math.AngleDifference(ang.y, oldAng.y)
-	local pitchDiff = math.AngleDifference(ang.p, oldAng.p)
-	ang.y = oldAng.y + yawDiff * 0.25
-	ang.p = oldAng.p + pitchDiff * 0.25
-	cmd:SetViewAngles(ang)
+	-- Apply turn rate limiting (Tomahawk logic)
+	-- This provides consistent resistance and prevents instant 180 spins
+	local currentAng = pl.DiveGuideAngles or cmd:GetViewAngles()
+	local desiredAng = cmd:GetViewAngles()
+	
+	-- Limit turn rate to 90 degrees/second
+	local newAng = util.LimitTurning(currentAng, desiredAng, 90, FrameTime())
+	
+	pl.DiveGuideAngles = newAng
+	cmd:SetViewAngles(newAng)
 
 	return true
 end

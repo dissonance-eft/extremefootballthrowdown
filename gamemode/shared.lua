@@ -120,7 +120,7 @@ end
 GM.RoundLimit = -1
 GM.RoundLength = 60 * 15
 GM.RoundPreStartTime = 5
-GM.RoundPostLength = 5
+GM.RoundPostLength = 6
 GM.RoundBased = true
 GM.RoundEndsWhenOneTeamAlive = false
 
@@ -721,12 +721,3 @@ function GM:PlayerNoClip( pl, on )
 	if ( !on ) then return true end
 	return GetConVarNumber( "sv_cheats" ) > 0
 end
-
-GM.RoundBased = true
-GM.RoundPreStartTime = 3
-GM.RoundPostLength = 5  -- Celebration time before next round
-
--- Death Configuration
-GM.MaximumDeathLength = 4      -- Auto respawn after 4 seconds
-GM.MinimumDeathLength = 4      -- Must stay dead the full 4 seconds
-GM.DeathLingerTime = 0         -- No split between ragdoll/spectator view

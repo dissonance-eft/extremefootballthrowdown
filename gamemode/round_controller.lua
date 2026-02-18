@@ -110,13 +110,6 @@ end
 //
 // Internal, override OnRoundStart if you want to do stuff here
 //
-//
-// Internal, override OnRoundStart if you want to do stuff here
-//
-function GM:RoundStart()
-	GAMEMANAGER:RoundStart()
-    self.CountDownPlayed = {}
-end
 
 function GM:OnTimerTick()
     if not self:InRound() then return end

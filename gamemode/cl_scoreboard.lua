@@ -74,7 +74,7 @@ function PANEL:Init()
 end
 
 function PANEL:Think()
-	-- Update player lists (Filter out bots per User Request)
+	-- Update player lists
 	self.RedPlayers = {}
 	self.BluePlayers = {}
 	self.Spectators = {}
@@ -88,6 +88,16 @@ function PANEL:Think()
 	for _, ply in ipairs(team.GetPlayers(TEAM_SPECTATOR)) do
 		table.insert(self.Spectators, ply)
 	end
+
+	-- Sort by Goals (desc), then Tackles (desc)
+	local function sortPlayers(a, b)
+		local aGoals = a:GetNWInt("Goals", 0)
+		local bGoals = b:GetNWInt("Goals", 0)
+		if aGoals ~= bGoals then return aGoals > bGoals end
+		return a:GetNWInt("Tackles", 0) > b:GetNWInt("Tackles", 0)
+	end
+	table.sort(self.RedPlayers, sortPlayers)
+	table.sort(self.BluePlayers, sortPlayers)
 end
 
 function PANEL:OnMouseWheeled(delta)

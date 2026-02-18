@@ -13,6 +13,7 @@ AddCSLuaFile("sh_states.lua")
 AddCSLuaFile("sh_voice.lua")
 AddCSLuaFile("sh_translate.lua")
 AddCSLuaFile("sh_animations.lua")
+AddCSLuaFile("sh_roundtransitions.lua")
 AddCSLuaFile("cl_postprocess.lua")
 AddCSLuaFile("cl_draw.lua")
 AddCSLuaFile("cl_selectscreen.lua")
@@ -446,7 +447,9 @@ function GM:Initialize()
 	end
 
 	resource.AddFile("materials/refract_ring.vmt")
+	resource.AddFile("materials/refract_ring.vtf")
 	resource.AddFile("materials/ball_halo.vmt")
+	resource.AddFile("materials/ball_halo.vtf")
 	resource.AddFile("materials/noxctf/sprite_bloodspray1.vmt")
 	resource.AddFile("materials/noxctf/sprite_bloodspray2.vmt")
 	resource.AddFile("materials/noxctf/sprite_bloodspray3.vmt")
@@ -457,11 +460,24 @@ function GM:Initialize()
 	resource.AddFile("materials/noxctf/sprite_bloodspray7.vmt")
 	resource.AddFile("materials/noxctf/sprite_bloodspray8.vmt")
 	resource.AddFile("materials/red_rhinos.vmt")
+	resource.AddFile("materials/red_rhinos.vtf")
 	resource.AddFile("materials/blue_bulls.vmt")
+	resource.AddFile("materials/blue_bulls.vtf")
+	resource.AddFile("materials/overlays/statuscold.vmt")
+	resource.AddFile("materials/overlays/statuscold.vtf")
 	resource.AddFile("sound/eft/ballreset.ogg")
 	resource.AddFile("sound/eft/bigpole_swing.ogg")
-
-	resource.AddFile("materials/overlays/statuscold.vmt")
+	-- Announcer sounds
+	for i = 1, 10 do
+		resource.AddFile("sound/eft/announcer/" .. i .. ".wav")
+	end
+	resource.AddFile("sound/eft/announcer/30s.wav")
+	resource.AddFile("sound/eft/announcer/1m.wav")
+	for i = 1, 5 do
+		resource.AddFile("sound/eft/announcer/goal" .. i .. ".wav")
+	end
+	resource.AddFile("sound/eft/announcer/player_dead.wav")
+	resource.AddFile("sound/eft/announcer/player_respawn.wav")
     resource.AddWorkshop("2022813030")
 
 
