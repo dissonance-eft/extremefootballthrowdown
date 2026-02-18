@@ -51,11 +51,14 @@ Bot.CHARGE_THRESHOLD = 300     ---@type number Units: distance to enter charge b
 Bot.CARRIER_WEAVE_AMP = 80    ---@type number Units: lateral weave amplitude when carrying ball
 Bot.CARRIER_WEAVE_FREQ = 1.2  ---@type number Hz: weave oscillation frequency
 Bot.BODYWALL_SPEED = 120      ---@type number Speed threshold: if below this with enemy ahead, punch
+Bot.THROW_RANGE_IDEAL = 800   ---@type number Units: ideal distance to stop and throw at goal
+Bot.THROW_RANGE_MAX = 1800    ---@type number Units: max believable throw distance
+Bot.THROW_GRAVITY = 300       ---@type number Custom throw gravity (from throw.lua PreDraw3DHUD)
 
 -- AI States
 Bot.STATE_IDLE = 0       ---@type number Standing still / no objective
 Bot.STATE_CHASE_BALL = 1 ---@type number Chasing a loose ball
-Bot.STATE_ATTACK = 2     ---@type number Carrying ball → run to goal
+Bot.STATE_CARRIER = 2     ---@type number Carrying ball → run to goal
 Bot.STATE_SWARM = 3      ---@type number Teammate has ball → escort/block
 Bot.STATE_DEFEND = 4     ---@type number Enemy has ball → intercept/tackle
 Bot.STATE_KNOCKED = 5    ---@type number Currently knocked down
@@ -159,6 +162,136 @@ local function FindThrowTarget(bot, goalPos)
         end
     end
     return bestMate
+end
+
+--- Get detailed goal info for a team: position, scoretype, whether throw-only.
+--- Scans trigger_goal entities each call (cheap, <16 entities total on any map).
+---@param teamid number Team index to get goals for
+---@return table[] goals Array of {pos=Vector, scoretype=number, throwOnly=boolean, touchAllowed=boolean, ent=Entity}
+local function GetGoalInfo(teamid)
+    local results = {}
+    for _, ent in pairs(ents.FindByClass("trigger_goal")) do
+        if ent:GetTeamID() == teamid then
+            local pos = ent:LocalToWorld(ent:OBBCenter())
+            local st = ent.m_ScoreType or SCORETYPE_TOUCH
+            table.insert(results, {
+                pos = pos,
+                scoretype = st,
+                throwOnly = (bit.band(st, SCORETYPE_THROW) == SCORETYPE_THROW) and (bit.band(st, SCORETYPE_TOUCH) ~= SCORETYPE_TOUCH),
+                touchAllowed = bit.band(st, SCORETYPE_TOUCH) == SCORETYPE_TOUCH,
+                throwAllowed = bit.band(st, SCORETYPE_THROW) == SCORETYPE_THROW,
+                ent = ent
+            })
+        end
+    end
+    return results
+end
+
+--- Find the best goal to target for the bot (nearest that accepts the given method).
+---@param botPos Vector Bot's position
+---@param teamid number Enemy team (goals belong to the enemy team for scoring)
+---@param preferThrow boolean If true, prefer throw-capable goals; otherwise prefer touchable
+---@return table? bestGoal Best goal info table, or nil
+local function FindBestGoal(botPos, teamid, preferThrow)
+    local goals = GetGoalInfo(teamid)
+    local best, bestDist = nil, math.huge
+    for _, g in ipairs(goals) do
+        -- If we prefer throw, only consider throw-capable goals
+        -- If we prefer touch, consider touch-capable goals first
+        local acceptable = preferThrow and g.throwAllowed or (not preferThrow and g.touchAllowed)
+        if not acceptable then
+            -- Fallback: accept any goal
+            acceptable = true
+        end
+        if acceptable then
+            local dist = botPos:Distance(g.pos)
+            if dist < bestDist then
+                bestDist = dist
+                best = g
+            end
+        end
+    end
+    return best
+end
+
+--- Check if ALL goals for a team are throw-only (no touch scoring allowed).
+---@param teamid number Team whose goals to check (enemy team for attacking bot)
+---@return boolean allThrowOnly True if every goal requires a throw to score
+local function AreGoalsThrowOnly(teamid)
+    local goals = GetGoalInfo(teamid)
+    if #goals == 0 then return false end
+    for _, g in ipairs(goals) do
+        if g.touchAllowed then return false end
+    end
+    return true
+end
+
+--- Calculate the pitch angle needed for a parabolic throw to hit a target.
+--- Uses the same physics model as throw.lua: pos(t) = start + aim*force*t, z -= 300*t²
+--- Solves for the pitch that lands the ball at the target position.
+---@param fromPos Vector Throw origin (bot's shoot position)
+---@param toPos Vector Target position (goal center)
+---@param throwForce number Total throw force (default ~1100)
+---@return number? pitch Pitch angle in degrees (negative = up), or nil if impossible
+---@return number? flightTime Estimated flight time in seconds
+local function CalcThrowPitch(fromPos, toPos, throwForce)
+    local dx = math.sqrt((toPos.x - fromPos.x)^2 + (toPos.y - fromPos.y)^2) -- horizontal distance
+    local dz = toPos.z - fromPos.z -- height difference (positive = target above us)
+    local g = Bot.THROW_GRAVITY -- 300 (custom throw gravity from throw.lua)
+    local v = throwForce -- total velocity magnitude
+    
+    if dx < 1 then
+        -- Directly below/above: throw straight up
+        return dz > 0 and -89 or -45, 0.5
+    end
+    
+    -- Projectile motion:
+    -- horizontal: dx = v * cos(theta) * t  →  t = dx / (v * cos(theta))
+    -- vertical:   dz = v * sin(theta) * t - g * t²
+    -- Substituting t:
+    --   dz = dx * tan(theta) - g * dx² / (2 * v² * cos²(theta))
+    -- Using identity: 1/cos²(theta) = 1 + tan²(theta), let u = tan(theta):
+    --   dz = dx * u - (g * dx²) / (2 * v²) * (1 + u²)
+    -- Rearranging into quadratic in u:
+    --   (g*dx²/(2v²)) * u² - dx * u + (g*dx²/(2v²) + dz) = 0
+    
+    local a = (g * dx * dx) / (2 * v * v)
+    local b = -dx
+    local c = a + dz
+    
+    local discriminant = b * b - 4 * a * c
+    if discriminant < 0 then
+        -- Target is out of range; use max loft
+        return -60, nil
+    end
+    
+    local sqrtDisc = math.sqrt(discriminant)
+    -- Two solutions: low arc and high arc. We want the LOW arc (more direct, faster arrival)
+    local u1 = (-b - sqrtDisc) / (2 * a) -- low arc
+    local u2 = (-b + sqrtDisc) / (2 * a) -- high arc
+    
+    -- Convert tan(theta) back to angle
+    local theta1 = math.deg(math.atan(u1)) -- low arc angle
+    local theta2 = math.deg(math.atan(u2)) -- high arc angle
+    
+    -- Pick the better arc: prefer low arc if reasonable, fallback to high arc for elevated targets
+    local pitch
+    if dz > 100 then
+        -- Target is elevated (goal ring above us) — use the high arc to clear the rim
+        pitch = -theta2
+    else
+        -- Use low arc for speed
+        pitch = -theta1
+    end
+    
+    -- Clamp to sane values
+    pitch = math.Clamp(pitch, -85, -10)
+    
+    -- Estimate flight time from the chosen arc
+    local cosTheta = math.cos(math.rad(-pitch))
+    local flightTime = (cosTheta > 0.01) and (dx / (v * cosTheta)) or 1.0
+    
+    return pitch, flightTime
 end
 
 --- Get this bot's proximity rank to a target (1 = closest on team).
@@ -358,17 +491,17 @@ function Bot:Debug()
     local stateNames = {
         [Bot.STATE_IDLE] = "IDLE",
         [Bot.STATE_CHASE_BALL] = "CHASE",
-        [Bot.STATE_ATTACK] = "ATTACK",
+        [Bot.STATE_CARRIER] = "CARRIER",
         [Bot.STATE_SWARM] = "SWARM",
         [Bot.STATE_DEFEND] = "DEFEND",
         [Bot.STATE_KNOCKED] = "KNOCKED",
     }
 
-    -- State color: green=attack, red=defend, yellow=chase, blue=swarm, grey=idle
+    -- State color: green=carrier, red=defend, yellow=chase, blue=swarm, grey=idle
     local stateColors = {
         [Bot.STATE_IDLE] = Color(150, 150, 150),
         [Bot.STATE_CHASE_BALL] = Color(255, 255, 100),
-        [Bot.STATE_ATTACK] = Color(100, 255, 100),
+        [Bot.STATE_CARRIER] = Color(100, 255, 100),
         [Bot.STATE_SWARM] = Color(100, 150, 255),
         [Bot.STATE_DEFEND] = Color(255, 100, 100),
         [Bot.STATE_KNOCKED] = Color(150, 80, 80),
@@ -399,7 +532,7 @@ function Bot:Debug()
     debugoverlay.Axis(self.ply:GetPos(), Angle(0, self.targetYaw, 0), 32, 0.15, true)
 
     -- State-specific visualizations
-    if self.state == Bot.STATE_ATTACK then
+    if self.state == Bot.STATE_CARRIER then
         local enemyTeam = GAMEMODE:GetOppositeTeam(self.ply:Team())
         local goalPos = GAMEMODE:GetGoalCenter(enemyTeam)
         if goalPos ~= vector_origin then
@@ -434,7 +567,7 @@ function Bot:DecideState()
 
     if IsValid(carrier) then
         if carrier == self.ply then
-            self.state = Bot.STATE_ATTACK
+            self.state = Bot.STATE_CARRIER
         elseif carrier:Team() == team then
             self.state = Bot.STATE_SWARM
         else
@@ -447,7 +580,7 @@ function Bot:DecideState()
     end
 
     -- Clear throw state if we're no longer the carrier
-    if self.state ~= Bot.STATE_ATTACK and self.throwState then
+    if self.state ~= Bot.STATE_CARRIER and self.throwState then
         self.throwState = nil
         self.didThrowSound = nil
     end
@@ -503,68 +636,118 @@ function Bot:ExecuteState()
              if count > 0 then targetPos = targetPos + repulsion end
         end
 
-    elseif self.state == Bot.STATE_ATTACK then
+    elseif self.state == Bot.STATE_CARRIER then
          if attackGoalPos then
-            local distToGoal = botPos:Distance(attackGoalPos)
-            local toGoalDir = (attackGoalPos - botPos):GetNormalized()
+            -- === GOAL AWARENESS: Find the actual goal entity and its scoretype ===
+            local bestGoal = FindBestGoal(botPos, enemyTeam, false) -- prefer touch first
+            local goalIsThrowOnly = bestGoal and bestGoal.throwOnly or false
+            local actualGoalPos = bestGoal and bestGoal.pos or attackGoalPos
+            local distToGoal = botPos:Distance(actualGoalPos)
+            local toGoalDir = (actualGoalPos - botPos):GetNormalized()
 
-            local blockersInPath = CountEnemiesInPath(botPos, attackGoalPos, enemyTeam, 200)
-            local nearestEnemy, nearEnemyDist = GetNearestEnemy(self.ply, 500)
-
-            -- === CARRIER MOVEMENT: Natural weave instead of strict beeline ===
-            -- Sinusoidal lateral offset creates natural-looking S-curves toward goal
-            if not self.jukePhase then self.jukePhase = math.random() * math.pi * 2 end
-            local weaveAmp = Bot.CARRIER_WEAVE_AMP or 80
-            local weaveT = curTime * (Bot.CARRIER_WEAVE_FREQ or 1.2) + self.jukePhase
-            local lateralOffset = math.sin(weaveT) * weaveAmp
-            
-            -- Increase weave when enemies are nearby (juking)
-            if IsValid(nearestEnemy) and nearEnemyDist < 400 then
-                lateralOffset = lateralOffset * 1.8
+            -- If ALL goals are throw-only, switch target to nearest throw-capable goal
+            if goalIsThrowOnly or AreGoalsThrowOnly(enemyTeam) then
+                local throwGoal = FindBestGoal(botPos, enemyTeam, true)
+                if throwGoal then
+                    actualGoalPos = throwGoal.pos
+                    goalIsThrowOnly = true
+                    distToGoal = botPos:Distance(actualGoalPos)
+                    toGoalDir = (actualGoalPos - botPos):GetNormalized()
+                end
             end
 
-            -- Calculate perpendicular direction for the weave
-            local perpDir = Vector(-toGoalDir.y, toGoalDir.x, 0)
-            targetPos = attackGoalPos + perpDir * lateralOffset
+            local blockersInPath = CountEnemiesInPath(botPos, actualGoalPos, enemyTeam, 200)
+            local nearestEnemy, nearEnemyDist = GetNearestEnemy(self.ply, 500)
 
-            -- When close to goal, reduce weave and beeline in
-            if distToGoal < 300 then
-                targetPos = attackGoalPos
+            -- === THROW-ONLY GOAL BEHAVIOR ===
+            -- On throw-only maps/goals: run to a firing position, then throw with calculated arc
+            if goalIsThrowOnly and self.throwState == nil and curTime > self.throwCooldown then
+                local throwRange = Bot.THROW_RANGE_IDEAL
+                
+                if distToGoal < Bot.THROW_RANGE_MAX then
+                    -- We're within throw range — initiate aimed throw at goal
+                    local throwForce = 1100 -- Base throw force (STATE.ThrowForce in throw.lua)
+                    local fromPos = botPos + Vector(0, 0, 64) -- approximate GetShootPos()
+                    local calcPitch, flightTime = CalcThrowPitch(fromPos, actualGoalPos, throwForce)
+                    
+                    if calcPitch then
+                        self.throwState = "goalshot"
+                        self.throwStart = curTime
+                        self.throwDuration = 0.6 + math.random() * 0.4 -- Quick-ish throw
+                        self.throwTarget = nil -- Aiming at goal, not a player
+                        self.throwCooldown = curTime + 2.0
+                        
+                        -- Aim at the goal
+                        local toGoal2D = (actualGoalPos - botPos)
+                        toGoal2D.z = 0
+                        self.targetYaw = toGoal2D:Angle().y
+                        self.targetPitch = calcPitch
+                        
+                        -- Add imperfection (P-060)
+                        self.targetPitch = self.targetPitch + math.Rand(-3, 3)
+                        self.targetYaw = self.targetYaw + math.Rand(-4, 4)
+                    end
+                end
+                
+                -- If we haven't started throwing yet, run to the throw position
+                if self.throwState == nil then
+                    -- Run toward goal but stop at ideal throw range
+                    local stopPos = actualGoalPos - toGoalDir * throwRange
+                    stopPos.z = botPos.z -- stay on our ground level
+                    targetPos = stopPos
+                end
+            end
+
+            -- === TOUCH-CAPABLE GOAL: Run it in (original behavior) ===
+            if not goalIsThrowOnly and self.throwState == nil then
+                -- === CARRIER MOVEMENT: Natural weave instead of strict beeline ===
+                if not self.jukePhase then self.jukePhase = math.random() * math.pi * 2 end
+                local weaveAmp = Bot.CARRIER_WEAVE_AMP or 80
+                local weaveT = curTime * (Bot.CARRIER_WEAVE_FREQ or 1.2) + self.jukePhase
+                local lateralOffset = math.sin(weaveT) * weaveAmp
+                
+                if IsValid(nearestEnemy) and nearEnemyDist < 400 then
+                    lateralOffset = lateralOffset * 1.8
+                end
+
+                local perpDir = Vector(-toGoalDir.y, toGoalDir.x, 0)
+                targetPos = actualGoalPos + perpDir * lateralOffset
+
+                if distToGoal < 300 then
+                    targetPos = actualGoalPos
+                end
             end
 
             -- === REACTIVE JUKE: Dodge enemy directly ahead ===
-            if IsValid(nearestEnemy) and nearEnemyDist < 250 then
+            if IsValid(nearestEnemy) and nearEnemyDist < 250 and not self.throwState then
                 local toEnemy = (nearestEnemy:GetPos() - botPos)
                 toEnemy.z = 0
                 local enemyDot = toGoalDir:Dot(toEnemy:GetNormalized())
 
                 if enemyDot > 0.7 then
-                    -- Enemy directly ahead — dodge laterally
                     local dodgeDir = Vector(-toEnemy.y, toEnemy.x, 0):GetNormalized()
-                    -- Pick consistent side based on bot index (avoids wiggling back and forth)
                     if bot:EntIndex() % 2 == 0 then dodgeDir = -dodgeDir end
                     targetPos = botPos + toGoalDir * 200 + dodgeDir * 180
                 elseif enemyDot < -0.5 then
-                    -- Enemy behind — look back
                     self.wantReload = true
                 else
                      self.wantReload = false
                 end
-            else
+            elseif not self.throwState then
                  self.wantReload = false
             end
 
-            -- === JUMP PAD ROUTING: Fly over blockers via launch pads ===
-            if blockersInPath >= 1 and distToGoal > 500 and bot:OnGround() then
-                local padPos = FindBestJumpPad(botPos, attackGoalPos, 400)
+            -- === JUMP PAD ROUTING ===
+            if not self.throwState and blockersInPath >= 1 and distToGoal > 500 and bot:OnGround() then
+                local padPos = FindBestJumpPad(botPos, actualGoalPos, 400)
                 if padPos and botPos:Distance(padPos) < 600 then
                     targetPos = padPos
                 end
             end
 
-            -- === BODY WALL PUNCH: Punch when an enemy is standing in our path blocking us ===
+            -- === BODY WALL PUNCH ===
             self.punchReactAt = self.punchReactAt or 0
-            if botSpeed < Bot.BODYWALL_SPEED then
+            if not self.throwState and botSpeed < Bot.BODYWALL_SPEED then
                 local wallCount = CountEnemiesInPath(botPos, botPos + toGoalDir * 150, enemyTeam, 80)
                 if wallCount >= 1 then
                     if self.punchReactAt == 0 then
@@ -578,9 +761,8 @@ function Bot:ExecuteState()
                 end
             end
 
-
-            -- Hail Mary
-            if distToGoal > 1500 and curTime > self.throwCooldown then
+            -- === HAIL MARY (long-range desperation throw — only on non-throw-only maps) ===
+            if not goalIsThrowOnly and distToGoal > 1500 and curTime > self.throwCooldown and self.throwState == nil then
                 local nearbyEnemy, nearbyDist = GetNearestEnemy(self.ply, 500)
                 if (not IsValid(nearbyEnemy) or nearbyDist > 500) and blockersInPath >= 1 then
                     self.throwState = "hailmary"
@@ -595,10 +777,10 @@ function Bot:ExecuteState()
                 end
             end
 
-            -- Throw Pass
-             if not self.wantReload and self.throwState == nil and curTime > self.throwCooldown then
+            -- === THROW PASS (to teammates) ===
+            if not goalIsThrowOnly and not self.wantReload and self.throwState == nil and curTime > self.throwCooldown then
                 if blockersInPath >= 2 and distToGoal > 500 then
-                    local throwTarget = FindThrowTarget(self.ply, attackGoalPos)
+                    local throwTarget = FindThrowTarget(self.ply, actualGoalPos)
                     if throwTarget and math.random() < 0.05 then
                         self.throwState = "winding"
                         self.throwStart = curTime
@@ -615,14 +797,18 @@ function Bot:ExecuteState()
                 end
             end
 
-            -- Throw Execution (with Curve technique: lead-angle aiming)
-            if self.throwState == "winding" or self.throwState == "hailmary" then
+            -- === THROW EXECUTION (all throw types) ===
+            if self.throwState == "winding" or self.throwState == "hailmary" or self.throwState == "goalshot" then
+                -- Stop moving during throw (throw.lua freezes player movement)
                 if self.throwState == "hailmary" then
                     targetPos = botPos
                     self.targetPitch = -75
+                elseif self.throwState == "goalshot" then
+                    targetPos = botPos -- Stand still while aiming at goal
+                    -- targetPitch already set by CalcThrowPitch above
                 end
 
-                -- Play throw sound (Start of windup)
+                -- Play throw sound
                 if not self.didThrowSound then
                     self.didThrowSound = true
                     local throwSounds = self.ply:GetVoiceSet(VOICESET_THROW)
@@ -975,7 +1161,7 @@ function Bot:ApplyMovement()
         -- Only punch if it's a player blocking us (user confirmed no breakables exist)
         if trPunch.Entity:IsPlayer() then
              -- CARRIER LOGIC: Never punch, just run around or pass
-             if self.state == Bot.STATE_ATTACK then
+             if self.state == Bot.STATE_CARRIER then
                  self.wantPunch = false
              -- DEFENDER LOGIC: Reduced punch frequency (don't spam)
              elseif math.random() < 0.1 then -- Reduced from instantaneous/constant
@@ -1119,7 +1305,7 @@ function Bot:BuildCommand(cmd)
     -- 4. THROW INPUT
     -- Lifecycle: "winding"/"hailmary" → hold IN_ATTACK2 (charges power)
     --            "release" → release IN_ATTACK2 (fires throw), then clear state next tick
-    if self.throwState == "winding" or self.throwState == "hailmary" then
+    if self.throwState == "winding" or self.throwState == "hailmary" or self.throwState == "goalshot" then
         -- Hold right-click to charge the throw
         cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_ATTACK2))
     elseif self.throwState == "release" then
