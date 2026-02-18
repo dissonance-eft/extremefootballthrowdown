@@ -11,7 +11,7 @@ function STATE:Started(pl, oldstate)
 end
 
 function STATE:Ended(pl, newstate)
-	if newstate ~= STATE_NONE or not pl:GetCarry():IsValid() or pl:GetCarry():GetClass() ~= "prop_carry_arcanewand" or pl:GetCarry().Canceled then return end
+	if newstate ~= STATE_MOVEMENT or not pl:GetCarry():IsValid() or pl:GetCarry():GetClass() ~= "prop_carry_arcanewand" or pl:GetCarry().Canceled then return end
 
 	pl:DoAttackEvent()
 

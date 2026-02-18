@@ -1,4 +1,4 @@
-KD_STATE_NONE = 0
+KD_STATE_MOVEMENT = 0
 /// MANIFEST LINKS:
 /// Mechanics: M-120 (Knockdown State)
 /// Principles: P-100 (Punishment for failure), C-002 (Short Possession - Turnover opportunity)
@@ -13,7 +13,7 @@ function STATE:Started(pl, oldstate)
 		end
 	end
 
-	pl:SetStateInteger(KD_STATE_NONE)
+	pl:SetStateInteger(KD_STATE_MOVEMENT)
 	pl:SetStateBool(math.random(2) == 1)
 
 	pl:ResetJumpPower(0)
@@ -112,14 +112,14 @@ function STATE:Think(pl)
 			pl:SetLocalVelocity(tackler:GetVelocity() * 1.02)
 			return
 		else
-			state = KD_STATE_NONE
+			state = KD_STATE_MOVEMENT
 			pl:SetStateInteger(state)
 		end
 	end
 
 	if state == KD_STATE_WALLSLAM then
 		if pl:IsOnGround() or pl:IsOnPlayer() or pl:WaterLevel() >= 2 then
-			pl:SetStateInteger(KD_STATE_NONE)
+			pl:SetStateInteger(KD_STATE_MOVEMENT)
 			pl:SetStateEnd(CurTime() + 1)
 		elseif pl._KNOCKDOWNWALLFREEZE then
 			if pl._KNOCKDOWNWALLFREEZE <= CurTime() then
@@ -128,7 +128,7 @@ function STATE:Think(pl)
 				pl:SetLocalVelocity(vector_origin)
 			end
 		end
-	elseif pl:GetStateInteger() == KD_STATE_NONE then
+	elseif pl:GetStateInteger() == KD_STATE_MOVEMENT then
 		if pl:GetStateEnd() > 0 and pl:GetStateEnd() < CurTime() + 1 then
 			if pl:GetVelocity():Length() >= 100 then
 				pl:SetStateEnd(CurTime() + 1)

@@ -298,7 +298,7 @@ function GM:Think()
 			end
 
 			local state = pl:GetState()
-            local lookbehind = (state == STATE_NONE or state == STATE_WAVE) and pl:GetStateInteger() == -1
+            local lookbehind = (state == STATE_MOVEMENT or state == STATE_WAVE) and pl:GetStateInteger() == -1
 			pl.LookBehind = math.Approach(pl.LookBehind or 0, lookbehind and 1 or 0, lbt)
 			if pl.LookBehind == 0 then
 				if pl.LookBehindScaled then

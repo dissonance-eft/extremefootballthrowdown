@@ -28,13 +28,14 @@ local function Register(filename)
 	index = index + 1
 end
 
-Register("none.lua")
+Register("movement.lua")
+STATE_NONE = STATE_MOVEMENT -- Alias for backward compatibility
 
 local folder = GM.FolderName or "extremefootballthrowdown"
 local filelist = file.Find(folder.."/gamemode/states/*.lua", "LUA")
 table.sort(filelist)
 for _, filename in ipairs(filelist) do
-	if filename ~= "none.lua" then
+	if filename ~= "movement.lua" then
 		Register(filename)
 	end
 end

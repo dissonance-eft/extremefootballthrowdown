@@ -87,7 +87,7 @@ function meta:CallForcedStateFunction(state, name, ...)
 end
 
 function meta:ThinkSelf()
-	if self:GetState() ~= STATE_NONE and self:GetStateEnd() > 0 and CurTime() >= self:GetStateEnd() and not self:CallStateFunction("GoToNextState") then
+	if self:GetState() ~= STATE_MOVEMENT and self:GetStateEnd() > 0 and CurTime() >= self:GetStateEnd() and not self:CallStateFunction("GoToNextState") then
 		self:EndState()
 	end
 
