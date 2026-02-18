@@ -1154,7 +1154,7 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 				lerp = math.Clamp(RealTime() - self.RoundEndCameraTime, 0, 1) ^ 0.5
 			end
 
-			local carrier = viewent:GetCarrier()
+			local carrier = viewent.GetCarrier and viewent:GetCarrier() or nil
 			if carrier and carrier:IsValid() then viewent = carrier end
 
 			origin:Set(viewent:LocalToWorld(viewent:OBBCenter()) * lerp + origin * (1 - lerp))
@@ -1436,41 +1436,15 @@ function GM:DrawMinimap()
 	local pos
 	local lp = LocalPlayer()
 	for _, pl in pairs(player.GetAll()) do
-		if pl:GetObserverMode() == OBS_MODE_NONE then
+		if pl:Alive() and pl:GetObserverMode() == OBS_MODE_NONE then
 			pos = MinimapWorldToScreen(pl:GetPos())
-			
-			local isAlive = pl:Alive()
-			local color = team.GetColor(pl:Team())
-			
-			-- Dead players (Gray X)
-			if not isAlive then
-				surface.SetDrawColor(150, 150, 150, 150)
-				surface.DrawRect(pos.x - 3, pos.y - 3, 6, 6) -- Placeholder for X
+			if pl == lp then
+				local c = 200 + math.abs(math.sin(CurTime() * 5)) * 55
+				surface.SetDrawColor(c, c, c, 255)
 			else
-				-- Alive players
-				if pl == lp then
-					-- Local Player: Arrow
-					local c = 200 + math.abs(math.sin(CurTime() * 5)) * 55
-					surface.SetDrawColor(c, c, c, 255)
-					
-					-- Simple Arrow Logic (Visual approximation)
-					-- Using a Rotated Rect for now, effectively a bar indicating direction?
-					-- Or just a larger square with a line?
-					-- Let's stick to a distinctive Square for reliability + Direction line
-					surface.DrawRect(pos.x - 4, pos.y - 4, 8, 8)
-					
-					-- Direction indicator
-					local ang = pl:EyeAngles().y
-					local rad = math.rad(ang - MinimapCamera.angles.y + 90) -- Adjust for map rotation
-					local dirX = math.cos(rad) * 8
-					local dirY = math.sin(rad) * 8
-					
-					surface.DrawLine(pos.x, pos.y, pos.x + dirX, pos.y - dirY)
-				else
-					surface.SetDrawColor(color.r, color.g, color.b, 255)
-					surface.DrawRect(pos.x - 3, pos.y - 3, 6, 6)
-				end
+				surface.SetDrawColor(team.GetColor(pl:Team()))
 			end
+			surface.DrawRect(pos.x - 2, pos.y - 2, 4, 4)
 		end
 	end
 
@@ -1481,12 +1455,14 @@ function GM:DrawMinimap()
 	self:DrawCircle(pos.x, pos.y, 8, team.GetColor(TEAM_BLUE))
 
 	local ball = self:GetBall()
-	local carrier = ball:GetCarrier()
-	pos = MinimapWorldToScreen(ball:GetPos())
-	if carrier:IsValid() then
-		self:DrawCircle(pos.x, pos.y, 6 + math.sin(CurTime() * 5) * 4, team.GetColor(carrier:Team()))
-	else
-		self:DrawCircle(pos.x, pos.y, 6, color_white)
+	if IsValid(ball) then
+		local carrier = ball.GetCarrier and ball:GetCarrier() or nil
+		pos = MinimapWorldToScreen(ball:GetPos())
+		if carrier and carrier:IsValid() then
+			self:DrawCircle(pos.x, pos.y, 6 + math.sin(CurTime() * 5) * 4, team.GetColor(carrier:Team()))
+		else
+			self:DrawCircle(pos.x, pos.y, 6, color_white)
+		end
 	end
 end
 
@@ -1603,7 +1579,9 @@ function GM:DrawGameStateHUD()
 	local centerY = h / 2  -- True center for all displays
 
 	-- Clear local RoundWinner when server clears the round result (new round starting)
-	if self.RoundWinner and GetGlobalInt("RoundResult", 0) == 0 and GetGlobalBool("InRound", false) then
+	-- Only clear if we are in the Pre-Round phase (RoundStartTime > CurTime)
+	-- This prevents flickering during the split-second between 'TeamScored' net msg and 'RoundResult' global update
+	if self.RoundWinner and GetGlobalInt("RoundResult", 0) == 0 and GetGlobalBool("InRound", false) and GetGlobalFloat("RoundStartTime", 0) > CurTime() then
 		self.RoundWinner = nil
 	end
 
@@ -1627,7 +1605,7 @@ function GM:DrawGameStateHUD()
 		if self:GetOvertime() then
 			text = team.GetName(self.RoundWinner) .. " WIN!"
 		else
-			text = self.RoundHomeRun and "HOME RUN!!" or "GOAL!!"
+			text = self.RoundHomeRun and "HOME RUN!!" or "GOAL!"
 		end
 
 		draw.SimpleText(text, "EFTGoalTextLarge", centerX, centerY - 50, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
@@ -1977,9 +1955,9 @@ function GM:TeamScored(teamid, hitter, points, homerun)
 	if not MySelf:IsValid() then return end
 
 	if teamid == MySelf:Team() or not team.Joinable(MySelf:Team()) then
-		surface.PlaySound("eft/touchdown.ogg")
+		-- surface.PlaySound("eft/touchdown.ogg") -- Removed legacy sound (s4 goal sounds used instead)
 	else
-		surface.PlaySound("eft/touchdown.ogg")
+		-- surface.PlaySound("eft/touchdown.ogg")
 	end
 
 	self.RoundWinner = teamid
@@ -2021,9 +1999,8 @@ net.Receive("eft_localsound", function(length)
 	local pitch = net.ReadFloat()
 	local vol = net.ReadFloat()
 
-	if LocalPlayer():IsValid() then
-		LocalPlayer():EmitSound(soundfile, 0, pitch, vol)
-	end
+	-- Use surface.PlaySound for UI/Announcer sounds (plays everywhere, no fallback)
+	surface.PlaySound(soundfile)
 end)
 
 net.Receive("eft_endofgame", function(length)

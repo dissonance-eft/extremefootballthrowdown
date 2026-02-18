@@ -19,7 +19,7 @@ function STATE:Started(pl, oldstate)
 	pl:ResetJumpPower(0)
 	
 	if SERVER then
-		pl:SetNoDraw(true)
+		-- pl:SetNoDraw(true)
 		pl:DrawShadow(false)
 	end
 end
