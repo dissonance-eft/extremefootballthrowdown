@@ -38,7 +38,7 @@ function SWEP:PrimaryAttack()
 	if owner:CallCarryFunction("PrimaryAttack") then return end
 
 	if owner:CanMelee() then
-		local state = STATE_PUNCH1
+		local state = STATE_PUNCH
 		--[[for _, tr in pairs(owner:GetTargets()) do
 			local hitent = tr.Entity
 			if hitent:IsPlayer() and hitent:GetState() == STATE_KNOCKEDDOWN then

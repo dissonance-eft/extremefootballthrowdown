@@ -226,11 +226,8 @@ end
 
 function GM:CanPlayerSuicide(pl)
 	-- Anti-Grief: Disable suicide during pre-round
-	if GAMEMODE:IsWarmUp() or GetGlobalBool("InPreRound", false) then
-		return false
-	end
-
-	if not self:InRound() then return false end
+	-- Strictly disable suicide if not in active round
+	if not GetGlobalBool("InRound", false) then return false end
 
 	if self.TieBreaker then
 		if pl:Alive() and pl:GetState() == STATE_FIGHTER2D and pl:GetStateInteger() ~= STATE_FIGHTER2D_LOSE then
