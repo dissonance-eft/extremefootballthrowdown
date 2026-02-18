@@ -128,8 +128,8 @@ function STATE:Think(pl)
 					--[[pl:SetState(STATE_POWERSTRUGGLE, nil, hitent)
 					hitent:SetState(STATE_POWERSTRUGGLE, nil, pl)
 					return]]
-				    pl:PrintMessage(HUD_PRINTTALK, "HEAD ON! - My speed: "..myspeedchat.." Their speed: "..otherspeedchat)
-				    hitent:PrintMessage(HUD_PRINTTALK, "HEAD ON! - My speed: "..otherspeedchat.." Their speed: "..myspeedchat)
+				    -- pl:PrintMessage(HUD_PRINTTALK, "HEAD ON! - My speed: "..myspeedchat.." Their speed: "..otherspeedchat)
+				    -- hitent:PrintMessage(HUD_PRINTTALK, "HEAD ON! - My speed: "..otherspeedchat.." Their speed: "..myspeedchat)
 				end
 				
 				-- ADJUSTED CHECK: Bots use skill variance to resolve ties

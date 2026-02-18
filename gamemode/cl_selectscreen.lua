@@ -181,11 +181,7 @@ function GM:ShowTeam()
 	-- MODEL SELECTOR (Bottom Center)
     draw.SimpleText("Choose Character", "EFTTeamSelectSpectator", w/2, h - 230, Color(200, 200, 200), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 
-    local modelScroll = vgui.Create("DHorizontalScroller", frame)
-    modelScroll:SetSize(800, 80) -- Widened from 600, Height 80 to fit 64px icons + padding
-    modelScroll:SetPos(w/2 - 400, h - 220)
-    modelScroll:SetOverlap(-10) -- Increase spacing (negative overlap = spacing)
-
+    -- Static Centered Model List (No Scroller)
     local currentModel = GetConVarString("cl_playermodel")
     local allowedModels = {}
     for mdl, allowed in pairs(GAMEMODE.AllowedPlayerModels) do
@@ -193,10 +189,17 @@ function GM:ShowTeam()
     end
     table.sort(allowedModels)
 
-    for _, mdl in ipairs(allowedModels) do
-        local icon = vgui.Create("SpawnIcon", modelScroll)
+    local iconSize = 64
+    local spacing = 10
+    local totalW = (#allowedModels * iconSize) + ((#allowedModels - 1) * spacing)
+    local startX = (w - totalW) / 2
+    local modelY = h - 180 -- Adjusted Y position
+
+    for i, mdl in ipairs(allowedModels) do
+        local icon = vgui.Create("SpawnIcon", frame)
         icon:SetModel(mdl)
-        icon:SetSize(64, 64)
+        icon:SetSize(iconSize, iconSize)
+        icon:SetPos(startX + (i-1) * (iconSize + spacing), modelY)
         icon:SetToolTip(mdl)
         
         -- Highlight selected model
@@ -211,17 +214,18 @@ function GM:ShowTeam()
             RunConsoleCommand("cl_playermodel", mdl)
             surface.PlaySound("UI/buttonclick.wav")
             
-            -- Refresh highlights
-            for _, child in pairs(modelScroll.Panels) do
-                child.PaintOver = nil
+            -- Refresh highlights by iterating frame children (simple check)
+            for _, child in pairs(frame:GetChildren()) do
+                if child.GetModel and child.PaintOver then -- Is likely our icon
+                     child.PaintOver = nil
+                end
             end
+            
             icon.PaintOver = function(s, w, h)
                 surface.SetDrawColor(0, 255, 0, 255)
                 surface.DrawOutlinedRect(0, 0, w, h, 2)
             end
         end
-        
-        modelScroll:AddPanel(icon)
     end
 	-- SPECTATOR (Bottom)
 	local specBtn = vgui.Create("DButton", frame)

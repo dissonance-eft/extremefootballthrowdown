@@ -1584,7 +1584,7 @@ function GM:CreateScoreboard(ScoreBoard)
 	self:AddScoreboardPing( ScoreBoard )
 
 	-- EFT Override: Column 4 = Goals, Column 5 = Tackles, both descending (true)
-	ScoreBoard:SetSortColumns({ 4, true, 5, true, 3, false })
+	ScoreBoard:SetSortColumns({ 4, true, 5, true })
 end
 
 local matScreenCrack = CreateMaterial("eft_screencrack", "UnlitGeneric", {

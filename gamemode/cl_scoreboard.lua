@@ -114,7 +114,7 @@ function PANEL:DrawPlayerRow(ply, x, y, w, isLocal)
 		if not ply.ScoreboardAvatarBot then
 			ply.ScoreboardAvatarBot = vgui.Create("DImage", self)
 			ply.ScoreboardAvatarBot:SetSize(32, 32)
-			ply.ScoreboardAvatarBot:SetImage("icon16/controller.png")
+			ply.ScoreboardAvatarBot:SetImage("bot.png")
 		end
 		if ply.ScoreboardAvatar then ply.ScoreboardAvatar:SetVisible(false) end
 		ply.ScoreboardAvatarBot:SetPos(x + 6, y + 2)
