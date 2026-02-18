@@ -153,45 +153,42 @@ function GM:GetGoalEntities(teamid)
     return goals
 end
 
--- Helper to get the center position of a team's goal(s)
--- Helper to get the center position of a team's goal(s)
+function GM:RecalculateGoalCenters(teamid)
+	local ball = self:GetBall()
+	if ball:IsValid() then
+		local vec = Vector(0, 0, 0)
+		local num = 0
+		local goals = ents.FindByClass("prop_goal")
+		goals = table.Add(goals, ents.FindByClass("trigger_goal"))
+		for _, ent in pairs(goals) do
+			if ent:GetTeamID() == teamid then
+				vec = vec + ent:LocalToWorld(ent:OBBCenter())
+				num = num + 1
+			end
+		end
+		if num > 0 then
+			if teamid == TEAM_RED then
+				ball:SetRedGoalCenter(vec / num)
+			elseif teamid == TEAM_BLUE then
+				ball:SetBlueGoalCenter(vec / num)
+			end
+		end
+	end
+end
+
 function GM:GetGoalCenter(teamid)
-    local goals = self:GetGoalEntities(teamid)
-    
-    -- Primary: Use actual goal entities
-    if #goals > 0 then
-        local center = Vector(0,0,0)
-        for _, goal in ipairs(goals) do
-            center = center + goal:LocalToWorld(goal:OBBCenter())
-        end
-        return center / #goals
-    end
+	local ball = self:GetBall()
+	if ball:IsValid() then
+		if teamid == TEAM_RED then
+			return ball:GetRedGoalCenter()
+		end
 
-    -- Fallback: If no goal triggers/props, use Enemy Spawn Points
-    -- BUT if we did find goals and they averaged to 0,0,0 (unlikely but possible), return it.
-    -- If we found NOTHING, return vector_origin.
+		if teamid == TEAM_BLUE then
+			return ball:GetBlueGoalCenter()
+		end
+	end
 
-    -- Note: spawnClasses Logic handles empty tables gracefully.
-    local spawnClasses = team.GetSpawnPoint(teamid)
-    if spawnClasses and #goals == 0 then
-        -- Only use spawns if NO explicit goals found.
-        -- If an explicit goal exists at 0,0,0, we respect it.
-        local center = Vector(0,0,0)
-        local count = 0
-        
-        for _, classname in pairs(spawnClasses) do
-            for _, ent in pairs(ents.FindByClass(classname)) do
-                if IsValid(ent) then
-                    center = center + ent:GetPos()
-                    count = count + 1
-                end
-            end
-        end
-        
-        if count > 0 then return center / count end
-    end
-
-    return (#goals > 0) and (goals[1]:GetPos()) or vector_origin
+	return vector_origin
 end
 
 GM.Ball = GM.Ball or NULL

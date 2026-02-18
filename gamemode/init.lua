@@ -58,6 +58,7 @@ include("sv_gmchanger.lua")
 include("sv_mapvote.lua")
 include("utility.lua")
 include("sv_emotes.lua")
+include("server/sv_match_recorder.lua") -- Enable Match Recording
 include("lib/promise.lua")
 include("lib/class.lua")
 include("lib/event.lua")
@@ -172,6 +173,56 @@ function GM:IsSpawnpointSuitable(pl, spawnpointent, bMakeSuitable)
 
 	return true
 end
+
+function GM:PlayerSelectSpawn(pl)
+    local teamid = pl:Team()
+    local spawns = {}
+
+    -- Select appropriate spawn classes based on team
+    if teamid == TEAM_RED then
+        table.Add(spawns, ents.FindByClass("info_player_terrorist"))
+        table.Add(spawns, ents.FindByClass("info_player_rebel"))
+        table.Add(spawns, ents.FindByClass("info_player_red"))
+    elseif teamid == TEAM_BLUE then
+        table.Add(spawns, ents.FindByClass("info_player_counterterrorist"))
+        table.Add(spawns, ents.FindByClass("info_player_combine"))
+        table.Add(spawns, ents.FindByClass("info_player_blue"))
+    else
+        table.Add(spawns, ents.FindByClass("info_player_deathmatch"))
+        table.Add(spawns, ents.FindByClass("info_player_start"))
+    end
+
+    -- Fallback: if no team spawns found, try generic ones (or opposing ones if map is weird)
+    if #spawns == 0 then
+        table.Add(spawns, ents.FindByClass("info_player_terrorist"))
+        table.Add(spawns, ents.FindByClass("info_player_counterterrorist"))
+        table.Add(spawns, ents.FindByClass("info_player_deathmatch"))
+        table.Add(spawns, ents.FindByClass("info_player_start"))
+    end
+	
+	local validSpawns = {}
+	for _, ent in pairs(spawns) do
+        -- Use our extended IsSpawnpointSuitable (bMakeSuitable=true)
+        -- We explicitly ignore the player themselves in the check to avoid self-blocking (though unlikely if dead)
+		if self:IsSpawnpointSuitable(pl, ent, true) then
+			table.insert(validSpawns, ent)
+		end
+	end
+
+	-- Pick random valid spawn, or fallback to any spawn
+	if #validSpawns > 0 then
+		return validSpawns[math.random(#validSpawns)]
+	end
+    
+    if #spawns > 0 then
+	    return spawns[math.random(#spawns)]
+    end
+    
+    return nil
+end
+
+
+
 
 function GM:CanPlayerSuicide(pl)
 	-- Anti-Grief: Disable suicide during pre-round
@@ -426,6 +477,12 @@ function GM:Initialize()
 	self:PrecacheResources()
 end
 
+function GM:InitPostEntity()
+	self.BaseClass:InitPostEntity()
+	self:RecalculateGoalCenters(TEAM_RED)
+	self:RecalculateGoalCenters(TEAM_BLUE)
+end
+
 function GM:EndWarmUp()
 	for _, pl in pairs(player.GetAll()) do
 		pl:SetDeaths(0)
@@ -557,6 +614,9 @@ function GM:OnPreRoundStart(num)
 	-- No direct SetGlobal calls here — GameManager is single writer
 
 	game.CleanUpMap()
+
+	self:RecalculateGoalCenters(TEAM_RED)
+	self:RecalculateGoalCenters(TEAM_BLUE)
 
 	UTIL_StripAllPlayers()
 	UTIL_SpawnAllPlayers()
@@ -696,6 +756,14 @@ function GM:Base_PlayerSpawn( pl )
 	hook.Call( "PlayerSetModel", GAMEMODE, pl )
 	pl:SetupHands()
 	pl:OnSpawn()
+
+    -- S4 Audio Overhaul: Player Respawn Sound
+    local soundPath = "eft/announcer/player_respawn.wav"
+    net.Start("eft_localsound")
+        net.WriteString(soundPath)
+        net.WriteFloat(100) -- Pitch
+        net.WriteFloat(1.0) -- Volume
+    net.Send(pl)
 end
 
 function GM:PlayerLoadout( pl )
