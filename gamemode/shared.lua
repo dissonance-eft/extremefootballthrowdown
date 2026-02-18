@@ -154,26 +154,48 @@ function GM:GetGoalEntities(teamid)
 end
 
 -- Helper to get the center position of a team's goal(s)
+-- Helper to get the center position of a team's goal(s)
 function GM:GetGoalCenter(teamid)
     local goals = self:GetGoalEntities(teamid)
-    if #goals == 0 then return vector_origin end
-
-    local center = Vector(0,0,0)
-    for _, goal in ipairs(goals) do
-        center = center + goal:LocalToWorld(goal:OBBCenter())
+    
+    -- Primary: Use actual goal entities
+    if #goals > 0 then
+        local center = Vector(0,0,0)
+        for _, goal in ipairs(goals) do
+            center = center + goal:LocalToWorld(goal:OBBCenter())
+        end
+        return center / #goals
     end
-    return center / #goals
+
+    -- Fallback: If no goal triggers/props, use Enemy Spawn Points
+    -- BUT if we did find goals and they averaged to 0,0,0 (unlikely but possible), return it.
+    -- If we found NOTHING, return vector_origin.
+
+    -- Note: spawnClasses Logic handles empty tables gracefully.
+    local spawnClasses = team.GetSpawnPoint(teamid)
+    if spawnClasses and #goals == 0 then
+        -- Only use spawns if NO explicit goals found.
+        -- If an explicit goal exists at 0,0,0, we respect it.
+        local center = Vector(0,0,0)
+        local count = 0
+        
+        for _, classname in pairs(spawnClasses) do
+            for _, ent in pairs(ents.FindByClass(classname)) do
+                if IsValid(ent) then
+                    center = center + ent:GetPos()
+                    count = count + 1
+                end
+            end
+        end
+        
+        if count > 0 then return center / count end
+    end
+
+    return (#goals > 0) and (goals[1]:GetPos()) or vector_origin
 end
 
 GM.Ball = GM.Ball or NULL
 GM.BallTrigger = GM.BallTrigger or NULL
-
-function GM:GetBall()
-    for _, ent in pairs(ents.FindByClass("prop_ball")) do
-        return ent
-    end
-    return NULL
-end
 
 function GM:IsOverTime()
     return self:GetGameTimeLeft() <= self.OvertimeTime
@@ -347,7 +369,13 @@ function GM:SetBall(ent)
 end
 
 function GM:GetBall()
-	return self.Ball or NULL
+	if IsValid(self.Ball) then return self.Ball end
+	-- Cached reference is stale (e.g. after game.CleanUpMap), find the live entity
+	for _, ent in pairs(ents.FindByClass("prop_ball")) do
+		self.Ball = ent
+		return ent
+	end
+	return NULL
 end
 
 function GM:ShouldDrawLocalPlayer(pl)
@@ -543,10 +571,10 @@ function GM:CreateTeams()
 	if not GAMEMODE.TeamBased then return end
 
 	team.SetUp(TEAM_RED, "Red Rhinos", Color(200, 0, 0))
-	team.SetSpawnPoint(TEAM_RED, {"info_player_red"}, true)
+	team.SetSpawnPoint(TEAM_RED, {"info_player_red", "info_player_terrorist", "info_player_rebel", "info_player_axis", "info_player_pirate"}, true)
 
 	team.SetUp(TEAM_BLUE, "Blue Bulls", Color(0, 92, 230))
-	team.SetSpawnPoint(TEAM_BLUE, {"info_player_blue"}, true)
+	team.SetSpawnPoint(TEAM_BLUE, {"info_player_blue", "info_player_counterterrorist", "info_player_combine", "info_player_american", "info_player_viking"}, true)
 
 	team.SetUp(TEAM_SPECTATOR, "Spectators", Color(200, 200, 200), true)
 	team.SetSpawnPoint(TEAM_SPECTATOR, {"info_player_blue", "info_player_red", "prop_ball"})

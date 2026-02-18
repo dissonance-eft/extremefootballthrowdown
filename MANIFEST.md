@@ -258,6 +258,8 @@ Arena geometry regulates gameplay timing and interaction density. Maps control i
 
 ## PART II -- SIMULATION MODEL (How the Game Works)
 
+> **Engine Note:** This model relies on standard **Source Engine (Havok) physics**.
+
 ### 1. Movement & Charge <!-- id: M-110 -->
 
 | Property | Value | Notes |
@@ -846,7 +848,7 @@ Carrier at 265 HU/s vs Defenders at 350 HU/s = defenders WILL catch up. Carrier 
 | **M-170** | Throw Windup | `gamemode/states/throw.lua` |
 | **M-190** | Scoring | `entities/entities/trigger_goal.lua` |
 | **E-210** | Tackle Event | `gamemode/obj_player.lua` (Calls `GameEvents.OnPlayerKnockedDownBy`) |
-| **B-000** | Bots | `gamemode/sv_bots.lua` / `obj_bot.lua` |
+| **B-000** | Bots | `gamemode/obj_bot.lua` (OOP AI), `gamemode/sv_bots.lua` (spawning/hooks) |
 
 ### Commenting Standard
 ```lua
@@ -889,10 +891,10 @@ function ResolveTackle(attacker, victim) ...
 *   **Anti-Outcome:** One player slides through ghosting everyone.
 *   **Demonstrates Concepts:** C-001, C-003
 
-**S-006 Interception Prediction**
-*   **Setup:** Ball thrown across middle. Defender cuts lane.
-*   **Expected:** Clean catch if timed right.
-*   **Anti-Outcome:** Ball phases through defender.
+**S-006 Mid-Field Collection**
+*   **Setup:** Ball lobbed across middle. Defender cuts lane.
+*   **Expected:** Defender runs through ball path to collect (no catch mechanic).
+*   **Note:** "Interception" is difficult; usually involves collecting the bounce/lob.
 *   **Demonstrates Concepts:** C-005, C-003
 
 **S-007 Escort Clearing**
@@ -901,13 +903,15 @@ function ResolveTackle(attacker, victim) ...
 *   **Demonstrates Concepts:** C-003, C-001
 
 **S-008 Intentional Hazard Reset**
-*   **Setup:** Carrier is pinned near own goal.
-*   **Expected:** Carrier throws ball into void. Ball resets to center. Strategic "Safety" play.
+*   **Setup:** Carrier pinned near own goal attempts a "Safety".
+*   **Expected:** Throw ball into void (instant reset) or pit (20s reset).
+*   **Result:** Ball resets to CENTER. Creates "NBA Tip-Off" style chaos/tackles.
 *   **Demonstrates Concepts:** C-002, C-007
 
 **S-009 Head-On Speed Duel**
-*   **Setup:** Player A (350 speed) hits Player B (340 speed).
-*   **Expected:** Player B knocked down. Deterministic skill reward.
+*   **Setup:** Player A (357 speed) hits Player B (356 speed).
+*   **Expected:** Player B knocked down. Deterministic skill reward despite tiny margin.
+*   **Note:** 340 HU/s would be below charge speed and lose to ANY charger.
 *   **Anti-Outcome:** Random winner; both fall.
 *   **Demonstrates Concepts:** C-006, C-009
 
@@ -942,9 +946,10 @@ function ResolveTackle(attacker, victim) ...
 *   **Anti-Outcome:** Global cooldowns prevent D hitting C.
 *   **Demonstrates Concepts:** C-002, C-006
 
-**S-016 Goal Poach**
-*   **Setup:** Loose ball rolling into goal. Player dives to stop it.
+**S-016 Goal Line Intercept**
+*   **Setup:** Loose ball rolling into goal. Player runs to cut it off.
 *   **Expected:** Save. Hero moment.
+*   **Note:** Diving is risky as you might fly *over* the ball.
 *   **Demonstrates Concepts:** C-004, C-003
 
 **S-017 Mid-Air Catch**
@@ -952,10 +957,7 @@ function ResolveTackle(attacker, victim) ...
 *   **Expected:** Catch and carry momentum. Skill expression.
 *   **Demonstrates Concepts:** C-005, C-009
 
-**S-018 Wall Slam Fumble**
-*   **Setup:** Carrier runs into wall at high speed.
-*   **Expected:** Knockdown/Fumble. Risk management.
-*   **Demonstrates Concepts:** C-005, C-002
+
 
 **S-019 Carrier Juke**
 *   **Setup:** Defender charges straight. Carrier strafes.
@@ -1051,7 +1053,7 @@ function ResolveTackle(attacker, victim) ...
 *   M-120 Knockdown: `gamemode/obj_player.lua`
 *   M-150 Possession: `gamemode/obj_ball.lua`
 *   M-170 Passing: `gamemode/states/throw.lua`
-*   B-000 Bots: `gamemode/sv_bots.lua`
+*   B-000 Bots: `gamemode/obj_bot.lua` (OOP AI class), `gamemode/sv_bots.lua` (spawn/hooks)
 
 ---
 
@@ -1114,7 +1116,7 @@ Temple Sacrifice (11), Space Jump (8), Baseball Dash (7) = many hazard spots.
 | `prop_goal` | Point | Visual goal model |
 | `prop_ball` | Point | Ball spawn point. Outputs: `onreturnhome`, `ondropped`, `onthrown`, `onpickedup` |
 | `trigger_ballreset` | Brush | Ball reset zone |
-| `trigger_abspush` | Brush | Push zone (jump pads). `pushvelocity`, `knockdown`, `pushplayers`/`pushball`/`pushphysobjects` |
+| `trigger_jumppad` | Brush | Push zone (aka `trigger_abspush`). `pushvelocity`, `knockdown` |
 | `trigger_knockdown` | Brush | Knockdown zone. `knockdowntime` (default 3.0s) |
 | `trigger_powerup` | Brush | Powerup zone. Types: `speedball`, `blitzball`, `waterball`, `magnetball`, `scoreball` |
 
@@ -1434,6 +1436,7 @@ excluded:
 | `eft_scorelimit` | `10` | Points needed to win |
 | `eft_pity` | `4` | Goal deficit to trigger pity speed buff |
 | `eft_bots_enabled` | `1` | Enable bot players |
+| `eft_dev` | `0` | Enable debug overlays for bot AI |
 | `eft_bots_skill` | `1.0` | Bot skill multiplier (0.1-2.0) |
 | `eft_bots_count` | `6` | Target players per team (bots fill empty slots) |
 | `fretta_voting` | `1` | Enable end-of-game voting |
@@ -1461,7 +1464,7 @@ excluded:
 
 | Command | Description |
 |---------|-------------|
-| `!rtv` / `/rtv` | Rock The Vote -- request early map change (66% threshold) |
+| `!top` | Show top players (if installed) |
 
 ---
 
@@ -1527,3 +1530,25 @@ excluded:
 | **C-004** | **Last-Second Intervention** | `trigger_goal.lua`, `logic_teamscore.lua` |
 | **C-009** | **Status Info** | `cl_hud.lua`, `vgui_hudlayout.lua` |
 | **C-010** | **Respawns** | `info_player_red.lua` |
+| **B-000** | **Bot AI** | `obj_bot.lua` (OOP class), `sv_bots.lua` (spawning/hooks) |
+| **HUD** | **Death Notices** | `cl_deathnotice.lua` (disabled), `vgui_gamenotice.lua` |
+
+
+---
+
+## CREDITS <!-- id: CREDITS -->
+
+**Original Conception & Code:**
+*   **William "JetBoom" Moodhe** (NoxiousNet) -- *The Founder*
+*   Original Repo: [Link TBD]
+
+**Modern Resurrection & Maintenance:**
+*   **Dissonance** (Review & Refactor) -- *The Steward*
+*   New Repo: [Link TBD]
+
+**Community Contributors:**
+*   (TBD based on Workshop/Discord contributions)
+
+**Links:**
+*   **Server IP:** [Coming Soon]
+*   **Steam Workshop:** [Coming Soon]
