@@ -1702,7 +1702,7 @@ function GM:OnHUDPaint()
 		if not lp:Alive() and lp:Team() ~= TEAM_SPECTATOR then
 			if not self.DeathDSPActive then
 				self.DeathDSPActive = true
-				lp:SetDSP(30) -- underwater/muffled DSP
+				lp:SetDSP(14) -- Underwater/Muffled
 			end
 		else
 			if self.DeathDSPActive then
