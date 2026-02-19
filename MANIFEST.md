@@ -1,11 +1,16 @@
 # MANIFEST.md: The Constitution of Extreme Football Throwdown
 
-**Extreme Football Throwdown (EFT)** is a continuous-contact team sport played around a live ball and goals, where players physically contest possession in real time without turns, plays, or stoppages.
+**Extreme Football Throwdown (EFT)** is a continuous collision sport where a swarm of players repeatedly interrupts and reassigns possession of a ball that automatically attaches to whoever physically contacts it after a tackle or throw event. Players do not "choose" possession — possession happens to them.
 
-*   **Distinctiveness:** It is distinct because it combines the continuous flow of sports like Hockey/Rocket League with the physical combat of a brawler. Roles are fluid, not fixed.
-*   **Core Loop:** Possession Stability -> Defensive Pressure -> Uncertainty -> Transition -> Immediate Role Reassignment -> New Stability.
-*   **Inviolable Warning:** **If a change makes the game cleaner but reduces tension, contested interactions, or reversals, the change is WRONG even if technically sound.**
-*   **Contract:** This document is both the "soul" of the game and the strict implementation contract. Code must serve this manifest.
+*   **Distinctiveness:** EFT combines the continuous flow of Hockey/Rocket League with the physical combat of a brawler. There are no stable offensive/defensive phases. Everyone is always charging and trying to tackle someone. If your target has the ball, that's defense. If your target is chasing the ball carrier, that's offense. Same action, different target. Roles are fluid, not fixed.
+*   **Core Loop:** Engage → Tackle → Displacement → Auto-possession transfer → Immediate retarget → Repeat. Because carriers are slower than defenders (~265 vs 350 HU/s), offense and defense invert multiple times in a single scramble. Goals occur when the system fails to interrupt a carrier for a brief window — not because a structured play succeeds.
+*   **Possession is the spark — and a curse.** The ball is a target marker, not a reward. It glues to you on contact and paints every opponent's crosshair on your back. The game's thrill comes from seizing it, defending it, and ripping it away in rapid succession. There is no "setup" offense, no "safe" carry. Possession is continuously decaying under pressure.
+*   **Auto-pickup:** The ball attaches instantly to anyone who touches it. No key, no delay, no confirmation animation. New players are frequently surprised by sudden turnovers caused by running into a loose ball. "Oh shit I have it" moments create instant retargeting and maintain pace. This is intentional — it fuels rapid offense/defense flips and keeps every scramble contested.
+*   **Passing is high-risk, high-reward.** A ~1s windup leaves the carrier nearly stationary and exposed. Passes are most effective when chaos gives a second of breathing room; otherwise, running is safer. Bounced or contested catches are the norm, not clean transfers.
+*   **Tackles are first-class outcomes.** A tackle that strips the ball from a breakaway carrier is as game-changing as a goal. The scoreboard tracks both. Tackling is not only about taking the ball — it is about disqualifying opponents from the next interaction cycle.
+*   **The real resource is upright participation.** The key resource in EFT is not territory or spacing — it is how many upright, charging players are near the next possession change. Knockdowns, swimming, wall hits, and respawns don't deal damage; they remove participation. "Creating space" means reducing the number of upright opponents who can contest the next 1-2 seconds.
+*   **Inviolable Warning:** **If a change makes the game cleaner but reduces tension, contested interactions, or reversals, the change is WRONG even if technically sound.** Visual polish must never weaken interaction properties. "Cleaner" behavior that reduces possession volatility or interaction density breaks the sport.
+*   **Contract:** This document is both the "soul" of the game and the strict implementation contract. Code must serve this manifest. The Lua code is a reference implementation; the manifest is the behavioral specification.
 
 ---
 
@@ -81,10 +86,10 @@ LLMs and bot designers should think of EFT as **"Rocket League but you ARE the c
 ## CORE GAMEPLAY CONCEPTS (The "Why")
 
 ### C-001 Continuous Contest <!-- id: C-001 -->
-Players are repeatedly drawn into contested interactions around scoring attempts. The game loop must never allow a player to feel "safe" or "finished" with their task until the ball is reset.
+Players are repeatedly drawn into contested interactions around the ball. Possession is the trigger — every carrier is immediately a target, every loose ball is an invitation to swarm. The game loop must never allow a player to feel "safe" or "finished" until the ball resets. Seizing the ball, protecting it, and ripping it away are equally valid and celebrated actions. Scrums are not a failure state — they are the sport. The typical cycle is: scrum → fumble → scramble → breakout attempt → re-collapse → goal or reset.
 
 ### C-002 Short Possession <!-- id: C-002 -->
-Possession is temporary and unstable. A carrier engaging a defender should expect to lose the ball or pass it within seconds. Long-term individual possession is a failure state.
+Possession is temporary and unstable. Because carriers are always slower than defenders, a carrier who cannot reach the goal or make a pass within seconds will be caught and stripped. Long-term individual possession is a failure state — not because possession is unimportant, but because the game is designed to make it difficult to hold. All meaningful actions occur under interruption threat. Most decisive windows are under 5 seconds; most are under 1-2 seconds. Three seconds feels like forever because multiple interaction cycles occur during that time.
 
 ### C-003 Simultaneous Relevance <!-- id: C-003 -->
 Most players can affect events within seconds. The map and movement speeds ensure that even a player far from the ball can rotate to a relevant intercept point quickly.
@@ -93,13 +98,13 @@ Most players can affect events within seconds. The map and movement speeds ensur
 Scores are preventable until the final moment. Mechanics like the "Goal-Line Stand" (S-001) exist specifically to allow defenders to make hero plays at the buzzer.
 
 ### C-005 Predictive Positioning <!-- id: C-005 -->
-Players succeed by moving early, not reacting late. The ball's physics and player speeds reward anticipation (cutting off lanes) over reaction (chasing the carrier).
+Players succeed by moving early, not reacting late. The ball's physics and player speeds reward anticipation (cutting off lanes) over reaction (chasing the carrier). Experienced players constantly evaluate one question: "Where will the next possession event occur within the next 1-2 seconds?" They are not tracking the ball itself — they are tracking the next collision that will decide the ball. Good players often move slightly *away* from the current carrier when they predict a tackle is imminent. This is not zoning — it is pre-reaction.
 
 ### C-006 Controlled Chaos <!-- id: C-006 -->
 Outcomes are uncertain but readable. Fumbles and bounces introduce variance, but that variance must be consistent enough for players to make informed risk assessments.
 
 ### C-007 Migrating Conflict Zone <!-- id: C-007 -->
-The "important" location of play continuously relocates. A scramble in the corner can instantly become a breakout to the center. Players must constantly re-evaluate where the conflict is moving.
+The "important" location of play continuously relocates. A scramble in the corner can instantly become a breakout to the center. Players must constantly re-evaluate where the conflict is moving. EFT is a cascade game: small interactions accumulate until a tipping point occurs (multiple opponents knocked down, a late returner whiffs, a head-on deletes the last upright interrupter). Then pressure fails to reform and the situation resolves suddenly into a run-in goal, a full-power throw, or an immediate counter-collapse. This resolution is not gradual — it is sudden.
 
 ### C-008 Downfield Contest Creation <!-- id: C-008 -->
 Actions (especially passing) create *new* contests rather than guaranteed possession. A pass is often a "punt" to a more favorable location for a fight, not a clean transfer.
@@ -109,6 +114,9 @@ Players must act before full information exists. Committing to a tackle or a jum
 
 ### C-010 Continuous Participation <!-- id: C-010 -->
 Respawns and resets return players into the same ongoing play. Elimination is a temporary tactical penalty, not a removal from the match flow.
+
+### C-011 Transition Dominance <!-- id: C-011 -->
+The most important events in EFT are transitions, not stable states. Tackle → fumble → instant pickup → immediate new target. Stable carry is not the core — possession change is the core. Impact is often shaping *who receives the ball next*, not being the one who holds it longest. Some players are primarily tacklers/clearers whose value is controlling transitions and disqualifying opponents, not carrying. EFT is skill-expressive but not skill-exclusive: good players influence outcomes more reliably, but low-skill players still matter because simply moving and colliding adds pressure to the swarm.
 
 ---
 
@@ -138,18 +146,19 @@ Skill is rewarded for **anticipating future interactions/positions**, not just r
 *   **Protects Concepts:** C-005, C-003
 
 ### 6. Head-On Collisions <!-- id: P-060 -->
-Head-on collisions are decided by **instantaneous velocity at impact**. Even tiny speed differences (0.1 HU/s) matter.
-*   **Momentum Influence:** Player-controlled momentum immediately before impact must influence tackle outcomes in a readable, learnable way.
-*   **Skill Expression:** This preserves the manual skill of "curving" or "strafing" into a hit to maximize velocity.
+Head-on collisions are decided by **instantaneous velocity at impact**. Even tiny speed differences (0.1 HU/s) matter. Head-ons are the primary visible mechanical skill test in EFT.
+*   **Momentum Influence:** Player-controlled momentum immediately before impact must influence tackle outcomes in a readable, learnable way. Source movement quirks allow smooth turning to add slight speed above baseline (~350 → ~356-358 HU/s). Winning by 358 vs 357 feels "earned" because the player generated the advantage through movement execution.
+*   **Skill Expression:** This preserves the manual skill of "curving" or "strafing" into a hit to maximize velocity. To inexperienced players head-ons can feel random; to experienced players they are highly consistent and historically used as a major skill ranking signal in the community.
+*   **Preservation:** Small player-controlled velocity variance must meaningfully affect head-on outcomes. If head-ons become symmetric/normalized, a major skill layer and social hierarchy signal disappears.
 *   **Bot Imperfection:** Bots must *not* be perfect at head-ons; they must exhibit human-like variance.
-*   **Protects Concepts:** C-006, C-009
+*   **Protects Concepts:** C-006, C-009, C-011
 
 ### 7. Passing Purpose <!-- id: P-070 -->
-Passing is for **playmaking and survival**, not just "moving the ball".
-*   **a) Emergency:** Transfer possession when carrier cannot survive.
-*   **b) Advancement:** Throw ahead into space and chase the landing point.
-*   **c) Playmaking:** Throw to a teammate moving into a better contest position.
-*   **Constraint:** Passes are rarely clean catches due to windup (~1s) and speed. Bounced/contested passes are the norm.
+Passing is for **playmaking and survival**, not just "moving the ball". It is high-risk, high-reward.
+*   **a) Emergency:** Transfer possession when carrier cannot survive — but the ~1s windup leaves you nearly stationary and exposed, so mistimed emergency passes often fail.
+*   **b) Advancement:** Throw ahead into space and chase the landing point — effectively a controlled fumble to a better field position.
+*   **c) Playmaking:** Throw to a teammate already moving into a better contest position.
+*   **Constraint:** The windup caps movement at ~100 HU/s (SPEED_THROW). A passing carrier is nearly stopped. Passes are most effective when chaos gives a genuine breathing window. Otherwise, running is safer. Bounced/contested catches are the norm; clean catches are the exception.
 *   **Protects Concepts:** C-008, C-007, C-001
 
 ### 8. Ball Readability <!-- id: P-080 -->
@@ -161,10 +170,11 @@ The ball is a **focal point for interaction**, not a chaos generator.
 *   **Protects Concepts:** C-006, C-005
 
 ### 9. Hazards, Death, and Reset Migration <!-- id: P-090 -->
-*   **Hazards are Intentional:** Voids/death zones are strategic tools.
-*   **Death Consequence:** ~4s respawn time. Moves player participation naturally.
+*   **Hazards are Population Control:** Voids/death zones are not "punishment flavor" — they regulate engagement density by removing participation. Removing even one player for several seconds strongly changes scoring probability because pressure reform depends on nearby upright participants.
+*   **Water:** Does not kill. Makes you swim (effectively irrelevant). Prevents meaningful contest until you return to playable area. Triggers ball reset (center).
+*   **Voids/Pits/Lava:** Triggers ball reset. Kills and forces respawn potentially far from the ball. Can create 10+ second absence from engagement.
+*   **Ball Resets tied to hazards are intentional:** They rapidly re-center the fight at a predictable convergence point. Reset is not downtime — reset is forced re-scrum.
 *   **Resets:** Players may *intentionally* reset the ball (e.g., throwing into void) to relocate the contest, especially to avoid conceding near their own goal.
-*   **Distance:** Distance to the next contest can matter as much as possession.
 *   **Respawn Participation:** Respawn timing must allow players to re-enter an active play rather than only the next play. The game relies on overlapping participation.
 *   **Protects Concepts:** C-010, C-003, C-007
 
@@ -177,13 +187,20 @@ The system must maximize opportunities for **sudden reversals**: clutch goal sav
 
 ### 11. WHAT BREAKS EFT (Explicit "Do Not Do" List) <!-- id: P-900 -->
 *   Making possession safe/stable (e.g., shields, infinite speed)
-*   Making throws risk-free or instant (removes the "commit" decision)
+*   Making throws risk-free or instant, or allowing mobility during throw (removes the "commit" decision)
 *   Removing fumbles/resets (removes the scramble)
 *   Making the ball highly chaotic/random (removes prediction)
 *   Softening knockdowns so consequences vanish (removes threat)
+*   Allowing players to meaningfully act while knocked down (removes participation removal)
 *   Slowing respawns so players can't rejoin continuous play (breaks flow)
-*   Removing head-on momentum influence (removes skill gap)
+*   Removing head-on momentum influence or making head-ons symmetric/random (removes skill gap)
 *   Over-smoothing friction that creates tension windows (removes "The Curve")
+*   Making ball resets create downtime instead of immediate convergence
+*   Preventing scrums from forming (insufficient density or mechanics changed)
+*   Delaying or controlling automatic possession transfer on contact
+*   Bots outperforming humans or replacing humans rather than scaffolding population
+*   "Sports simulation" expectations replacing chaotic collision sport identity
+*   Cleaner or more realistic physics that delete outcome signatures (EFT is arcade-reliable with expressive collision outcomes, not a realism sim)
 
 ### 12. Excluded Mechanics <!-- id: P-910 -->
 
@@ -208,9 +225,9 @@ The system must maximize opportunities for **sudden reversals**: clutch goal sav
 > **Invariant:** Possession should naturally change hands frequently during active play. The carrier should feel temporarily empowered but inevitably threatened within seconds. If carriers can reliably retain the ball for extended periods, the system is broken.
 *   **Protects Concepts:** C-002, C-001
 
-#### Collision Density
-> **Invariant:** Players should regularly be within a few seconds of a meaningful interaction (tackle attempt, interception attempt, or contested ball). Long stretches without threat or contest indicate a broken gameplay state.
-*   **Protects Concepts:** C-003, C-001
+#### Collision Density (Swarm Requirement)
+> **Invariant:** Players should regularly be within a few seconds of a meaningful interaction (tackle attempt, interception attempt, or contested ball). Long stretches without threat or contest indicate a broken gameplay state. EFT requires collision density to be EFT. Players remain near the engagement because influence exists near the next possession transfer. There are no persistent roles and no formations — functions last seconds: tackler → carrier → victim → tackler again.
+*   **Protects Concepts:** C-003, C-001, C-011
 
 #### Carrier Emotional Tension
 > **Invariant:** The carrier must feel dangerous but not safe. A scoring attempt should always feel possible and always feel interruptible. Mechanics must preserve simultaneous empowerment and vulnerability.
@@ -252,7 +269,7 @@ Major events (turnovers, breakaways, saves, last-second stops) must be understan
 Low-skill participation must still meaningfully affect play outcomes. Body presence, pressure, accidental interference, and recovery attempts should influence plays even without precise mechanical execution. The system must not require high mechanical skill for a player to matter within a play.
 
 #### Map Authority
-Arena geometry regulates gameplay timing and interaction density. Maps control interception timing, swarm formation, recovery distance, and throw viability. During engine porting, the engine must be adapted to preserve map behavior rather than altering maps to fit new physics assumptions.
+Arena geometry regulates gameplay timing and interaction density. Maps are not scenery — they are gameplay regulators. Geometry changes re-entry timing, collision angles, number of simultaneous participants, hazard removal frequency, throw survival probability, and cascade likelihood. Maps alter the behavior of the swarm, not just aesthetics. Open maps increase interaction frequency and swarm chaos; structured/hazard maps increase prediction, punishment, and participation removal. During engine porting, the engine must be adapted to preserve map behavior rather than altering maps to fit new physics assumptions. A correct EFT implementation treats map design as system tuning, not decoration.
 
 ---
 
@@ -276,7 +293,8 @@ Arena geometry regulates gameplay timing and interaction density. Maps control i
 | Wiggle boost | +10 HU/s | Mouse micro-turn at max speed |
 | Bhop cap | 700.0 HU/s | Soft cap |
 
-*   **Charge State:** Active when grounded and speed > 300 HU/s.
+*   **Charge State:** Active when grounded and speed > 300 HU/s. The charge animation begins at 280 HU/s so the visual reads as already threatening by the time the tackle fires.
+*   **Charge State Economy:** Carriers always operate below charge threshold (~265 HU/s), making them prey. Defenders must build to 300+ to tackle, then manage wall contact and turning penalties to maintain speed. Teammates' core job is to body-block pursuers (legal at any speed) and buy the carrier a route to the goal or a throw window. A carrier's survival depends on tight turns, wall bounces to reset angles, and ramp-boosted exits — not on outrunning defenders.
 *   **Acceleration:** ~1.5s to reach max speed from stop; ~1.0s to reach charge threshold.
 *   **Wall Punishment:** Hitting any obstacle sets speed to 0. Requires full re-acceleration.
 
@@ -404,8 +422,9 @@ Key properties:
 *   **Passing:** Throwing forces possession loss.
 *   **Carrier:** Entity holding ball. Speed capped. Cannot initiate tackles (must drop/throw first).
 *   **Knocked-down pickup:** NO -- must recover first.
-*   **Auto-pickup:** Yes (run through = grab).
-*   **Supports Concepts:** C-002, C-009
+*   **Auto-pickup:** Yes (run through = grab). No pickup key, no pickup delay, no confirmation animation gate. This is intentional and central to the game feel. New players are frequently surprised by sudden turnovers caused by running into a loose ball — this is by design. "Oh shit I have it" moments create instant retargeting and maintain pace. Any added smoothing that makes possession feel controlled reduces EFT's chaos identity. Every loose ball is immediately contested.
+*   **Tackles are first-class outcomes.** A tackle that strips a breakaway carrier is as game-changing as a goal. The scoreboard tracks both goals and tackles. Defenders who strip consistently are contributing as much as scorers.
+*   **Supports Concepts:** C-002, C-009, C-001
 
 ### 8. Fumble / Ball Loose <!-- id: M-160 -->
 
@@ -436,6 +455,9 @@ Key properties:
 | Speedball windup | 0.5x (faster) |
 | Speedball throw force | 1.25x |
 | Speedball carrier speed | 1.5x (stacks with carrier penalty) |
+
+**Throw Commitment Window (The Longest Voluntary Vulnerability):**
+Throwing is the longest voluntary vulnerability state in the game. During throw, movement speed = ~0 (100 HU/s shuffle). A full throw requires surviving >1 second of uninterrupted pressure in a game where 1 second is huge. Throwing is a gamble: full power = high reward, very low survival probability; early release = lower reward, higher probability; cancel = rarer survival choice. Passing skill is primarily prediction of interruption timing, not aim accuracy. Many passes are "get it somewhere" throws, not perfect planned routes.
 
 **Throwing Risk (The 25% Rule):**
 - ~25% of pass attempts fail (carrier tackled mid-windup) in simulated play
@@ -566,8 +588,8 @@ Football is the theme. The actual genre is a **spatial prediction and pressure-m
 > **Extreme Football Throwdown is a high-frequency role-switching arena game where collision physics
 > create localized crises, and players continuously predict, cause, and escape those crises.**
 
-**1. EFT is not about possession -- it is about state changes.**
-The game is a rapid cycle of player states: defender, interceptor, carrier, escort, loose-ball scrambler. Players do not pick roles. Physics assigns roles repeatedly. Every tackle or fumble instantly creates a new micro-game. The fun comes from how often your importance changes.
+**1. EFT is not about possession -- it is about transitions.**
+The game is a rapid cycle of player states: defender, interceptor, carrier, escort, loose-ball scrambler. Players do not pick roles. Physics assigns roles repeatedly. Every tackle or fumble instantly creates a new micro-game. The fun comes from how often your importance changes. Stable carry is not the core — possession change is the core.
 
 **2. The real resource is charge state -- a threat state, not a speed value.**
 At 300+ HU/s grounded, you control space. Below charge state, you are prey. Walls, jumps, and sharp turns matter because they force you to lose state and become vulnerable. The question for every code change is not "does this affect speed?" but "does this affect when players feel like predators vs prey?"
@@ -621,6 +643,45 @@ Going from 0 to 350 takes ~1.5 seconds. Going from 0 to 300 takes ~1.0 seconds. 
 **When jumping is SMART:** Carrier evading a tackle, reaching elevated platforms, throw setup from height, crossing gaps.
 
 **When jumping is STUPID:** While being chased on flat ground (bhop penalty), in a scrum (need charge to contest), when you're the last defender.
+
+### The Cognitive Model (How Humans Actually Perceive EFT) <!-- id: FEEL-COGNITIVE -->
+
+This section exists to prevent future implementations from over-intellectualizing the sport.
+
+Players did NOT think in strategy terms. They did not think: formations, lanes, routes, positions, planned plays. Instead, players operated on immediate prediction. Experienced players constantly evaluated only one question: **"Where will the next possession event occur within the next 1-2 seconds?"**
+
+They were not tracking the ball itself. They were tracking the *next collision that would decide the ball.* The ball is a signal, not the objective. The real objective is being upright and arriving at the next interaction before everyone else.
+
+Because of this, good players often moved slightly away from the current carrier — not toward them — when they predicted a tackle was imminent. This is not zoning or positioning. It is pre-reaction. A player could appear passive for half a second and then instantly become decisive because they moved to the *future* interaction location rather than the present one.
+
+The game was learned procedurally, not instructionally. After only minutes of play, humans formed a subconscious predictive loop: observe → anticipate interruption → reposition → collide → retarget. Skill expression felt intuitive rather than analytical. Players were not executing knowledge — they were executing anticipation.
+
+### Reflex Continuity (The Preservation Goal) <!-- id: FEEL-PRESERVATION -->
+
+EFT strongly imprints because it trains predictive reflexes under social reinforcement: extremely short feedback loops, immediate consequence visibility, public skill signaling (especially head-on wins), high repetition density, rivalry and recognition. Players did not memorize EFT — they internalized it, similarly to a sport or a musical instrument.
+
+**The goal of any port is not visual fidelity. The goal is reflex continuity:** a veteran player should instinctively react correctly within seconds of joining, before consciously analyzing mechanics. If a veteran must relearn interaction timing, the implementation is incorrect even if mechanics appear identical.
+
+Veterans can often predict outcomes before they occur because the system is consistent, not random. This property must be preserved. If a new engine produces the same reflex responses from players, it is EFT. If it produces slower deliberative play, it is not.
+
+### Required Player Perceptions <!-- id: FEEL-PERCEPTIONS -->
+
+A correct implementation should cause players to feel:
+*   Pressured while holding the ball
+*   Immediately relevant upon spawning
+*   Able to predict a breakout before it occurs
+*   Responsible when losing a head-on
+*   Urgency during throw commitment
+*   Chaotic density near the engagement
+
+Players should NOT commonly feel:
+*   Safe carrying the ball
+*   Methodical play development
+*   Formation-based tactics
+*   Long uncontested movement
+*   Delayed relevance after spawning
+
+**If player perception shifts toward planning instead of reacting, the implementation has diverged.**
 
 ### Veteran Gameplay Knowledge <!-- id: FEEL-VETERAN -->
 
@@ -747,6 +808,9 @@ OVERTIME    SUDDEN DEATH Raw panic. Next goal wins.
 ### History
 Created by **William "JetBoom" Moodhe** on **NoxiousNet** (October 2012). Built on Fretta13 for Garry's Mod. Steam Workshop: 275,283 subscribers, 10,944 five-star ratings. EFT survived the community's shutdown because of its unique "sport" feel -- it wasn't just a mod, it was a competitive discipline.
 
+### Community Context (Server Culture)
+EFT historically functioned as a persistent server "place", not matchmaking. Players joined mid-game, left mid-game, rejoined, memed, trolled, or played seriously. The game did not teach controls well (poor F1/help; context mostly learned by playing). The sport survived because: the core loop is robust to non-optimal play, skill was visible enough to form rivalry and reputation (especially head-ons), and community identity persisted across nights. EFT can be goofy/wacky in tone while still being taken seriously by players. The esport-like seriousness came from rivalry and repetition, not from presentation polish. Do not sterilize identity signals that create culture (e.g., quick feedback, scoreboard readability), but do not design "for trolling" either. The system should survive it naturally.
+
 ### Competitive Era: Extreme Football League (EFL)
 
 EFT had a formal 5v5 draft league that ran **8 seasons** across two eras (~2014-2018):
@@ -801,23 +865,28 @@ Elite teams balance all three. Pure anything gets countered.
 - **"Fumble Camp":** Position near expected fumble spot, grab loose ball
 - **"The Screen":** Teammate body-blocks defender, creating lane
 
-### The Chaos Scale
+### The Chaos Scale (Scale Sensitivity)
+
+EFT functions across multiple population sizes but behavior changes with density. The system must remain playable at low counts and chaotic at high counts without mechanical rule changes.
 
 | Player Count | Chaos Level | Feel |
 |-------------|-------------|------|
-| 3v3 | Tactical | Every player matters. More like chess. Lots of 1v1 duels |
-| 5v5 (EFL) | Competitive sweet spot | Enough for teamplay, few enough for individual impact |
-| 10v10 | Pub standard | Fun chaos. Scrums are violent. Breakaway runs feel heroic |
-| 15v15 | Carnage | Ball changes hands 5+ times in a single scrum |
+| 3v3 | Tactical | Higher individual influence, more readable interactions. Every player matters. 1v1 duels |
+| 5v5 (EFL) | Competitive sweet spot | Frequent scrums, balanced chaos and prediction. Target baseline |
+| 10v10 | Pub standard | Fun chaos. Heavy swarm behavior. Breakaway runs feel heroic |
+| 15v15 | Carnage | Rapid cascade resolution. Ball changes hands 5+ times in a single scrum |
 | 20v20 | ABSOLUTE BEDLAM | Kill feed is a waterfall of possession changes |
 
 ### Flow & Rhythm
 The match has a musical rhythm: *Scrum (Crescendo) -> Breakout (Release) -> Chase (Tension) -> Goal (Climax) -> Reset (Silence).* Disrupting this rhythm with too many stoppages or long downtimes kills the "flow state" veterans enter.
 
-### Maps Philosophy
-Maps are not just geometry; they are **movement puzzles**.
-*   **Good Maps:** Create "lanes" and "intercept points".
+### Maps as Behavioral Parameters
+Maps are not scenery or movement puzzles — they are **behavioral regulators** that tune the swarm. Geometry changes: re-entry timing, collision angles, number of simultaneous participants, hazard removal frequency, throw survival probability, and cascade likelihood.
+*   **Open maps:** Higher scoring, more swarm chaos, more constant collisions. Favor carriers (dodge space).
+*   **Structured/hazard maps:** Stronger prediction layer, stronger punishment via participation removal. Favor defenders.
+*   **Good Maps:** Create intercept points and force routing decisions. A player who dominates one map may struggle on another.
 *   **Bad Maps:** Are just open fields (boring) or overly cluttered (random).
+*   Map variety is desirable. EFT maps should differ in playstyle, not just textures.
 *   Any map must support the **Continuous Contest**.
 
 ### The 2-Second Rule (Statistical Proof)
@@ -1116,9 +1185,9 @@ Temple Sacrifice (11), Space Jump (8), Baseball Dash (7) = many hazard spots.
 | `prop_goal` | Point | Visual goal model |
 | `prop_ball` | Point | Ball spawn point. Outputs: `onreturnhome`, `ondropped`, `onthrown`, `onpickedup` |
 | `trigger_ballreset` | Brush | Ball reset zone |
-| `trigger_jumppad` | Brush | Push zone (aka `trigger_abspush`). `pushvelocity`, `knockdown` |
+| `trigger_jumppad` | Brush | Push zone. `pushvelocity`, `knockdown`. Legacy alias: `trigger_abspush` (identical logic, kept for old maps) |
 | `trigger_knockdown` | Brush | Knockdown zone. `knockdowntime` (default 3.0s) |
-| `trigger_powerup` | Brush | Powerup zone. Types: `speedball`, `blitzball`, `waterball`, `magnetball`, `scoreball` |
+| `trigger_powerup` | Brush | Powerup zone. Types: `speedball`, `blitzball`, `waterball`, `iceball`, `magnetball`, `scoreball` |
 
 **Spawn Entities:** `info_player_red`, `info_player_blue`, `info_player_spectator`, `logic_norandomweapons`
 
@@ -1130,6 +1199,7 @@ Temple Sacrifice (11), Space Jump (8), Baseball Dash (7) = many hazard spots.
 |---------|--------|--------|
 | `speedball` | Speed boost, faster throw windup (0.5x), stronger throw (1.25x) | Active |
 | `waterball` | Carrier runs on water surface | Active |
+| `iceball` | Near-zero friction: ball slides and rolls freely; low damping, ice physics material | Active |
 | `blitzball` | Ball on fire from explosion proximity | Legacy |
 | `magnetball` | Ball attracts to nearby players | Disabled |
 | `scoreball` | Scoring modifier | Disabled |
@@ -1138,7 +1208,9 @@ Temple Sacrifice (11), Space Jump (8), Baseball Dash (7) = many hazard spots.
 
 ## APPENDIX G -- BOT AI DESIGN <!-- id: APP-G -->
 
-> **The Rocket League Bot Philosophy:** Each bot is an independent agent making LOCAL decisions based on spatial awareness. No centralized "play caller." Emergent coordination from individual intelligence.
+> **Purpose:** Bots exist to prevent empty-server inertia and maintain engagement density. They are population scaffolding, not dominance agents. They must: keep the server "alive" at low population, preserve swarm identity and contested possession loops, leave as humans join (already implemented), and never dominate humans. Bots should feel like mid-level humans: active, sometimes wrong, sometimes brilliant, often chaotic. They should be tuned by prediction horizon and decision quality, not raw mechanical advantage.
+>
+> **The Rocket League Bot Philosophy:** Each bot is an independent agent making LOCAL decisions based on spatial awareness. No centralized "play caller." Emergent coordination from individual intelligence. Bots should prioritize being upright near the next interaction, re-entering conflict after displacement, and influencing transitions rather than "running plays." Passing behavior should be modeled as interruption prediction (can I survive the >1s throw window?), not receiver targeting perfection.
 
 ### Core Bot Behaviors (Priority Order)
 
@@ -1471,12 +1543,16 @@ excluded:
 
 ## REASONING GUIDANCE FOR AI MAINTAINERS <!-- id: AI-GUIDE -->
 
+### Design Philosophy Constraint
+EFT rewards **anticipation over planning**. Players succeed by predicting the next interaction, not executing long-term strategies. Any addition that shifts success toward structured planning rather than reactive prediction is misaligned with the sport.
+
 **When modifying or implementing a mechanic:**
 1.  **Identify the mechanic's M-ID.**
 2.  **Check associated C-IDs (Concepts).**
 3.  **Ensure those behaviors still emerge after the change.**
+4.  **Consult APPENDIX J (Behavioral Diagnostics)** -- would the change cause any drift conditions?
 
-> **WARNING:** If a change improves clarity or fairness but weakens a linked concept (especially **C-001 Continuous Contest**, **C-002 Short Possession**, or **C-003 Simultaneous Relevance**), the change is **INCORRECT**.
+> **WARNING:** If a change improves clarity or fairness but weakens a linked concept (especially **C-001 Continuous Contest**, **C-002 Short Possession**, **C-003 Simultaneous Relevance**, or **C-011 Transition Dominance**), the change is **INCORRECT**.
 
 **Evaluation Checklist (from 18.7):**
 1. Speed/vulnerability -- does this alter vulnerability duration after losing speed?
@@ -1486,6 +1562,10 @@ excluded:
 5. Positioning vs reaction -- which does this reward?
 6. Emotional arc -- does this flatten the match tension curve?
 7. Decision preservation -- would a veteran still play the same way?
+8. Reflex continuity -- would a veteran instinctively react correctly, or need to relearn?
+
+### The Definitive Test
+EFT is not defined by its code. EFT is defined by a repeating human experience: **constant pressure, instant retargeting, unstable possession, sudden resolution.** If an implementation recreates those experiences, it is EFT. If it recreates the mechanics but not the experience, it is not EFT.
 
 ---
 
@@ -1500,16 +1580,72 @@ excluded:
 **Cross-Linking:**
 *   Mechanics MUST link to Concepts they support.
 
-### 15. Behavioral System Requirements <!-- id: P-970 -->
-... (existing content) ...
+---
+
+## APPENDIX J -- BEHAVIORAL DIAGNOSTICS <!-- id: APP-J-DIAG -->
+
+> This appendix allows a developer, tester, or AI system to determine whether an implementation still behaves as EFT without relying on nostalgia or memory.
+
+### Correct Behavior (Commonly Observed During Normal Play)
+
+*   Possession frequently changes hands within seconds
+*   Carriers rarely feel safe for long durations
+*   Scrums naturally form around the next expected possession event
+*   Most successful goals occur immediately after a brief participation imbalance
+*   Players repeatedly switch roles (tackler → carrier → victim → tackler) within short time spans
+*   Throw attempts are often interrupted
+*   A single removed participant can noticeably affect the next outcome
+*   Players instinctively converge on a loose ball without needing incentives
+*   Head-on collisions visibly reward smoother approach and timing
+*   Players re-enter conflict immediately after recovery
+
+### Drift Conditions (Implementation Is Diverging)
+
+*   Possession chains last a long time
+*   Goals result from planned advance rather than sudden break
+*   Players spread across the map instead of collapsing toward interaction
+*   Carriers feel safe while moving
+*   Throws frequently succeed without protection
+*   Head-ons feel symmetrical or random
+*   Scrums are rare or optional
+*   Players hesitate after a turnover instead of instantly retargeting
+*   Removing one player has little effect on the next few seconds
+
+If drift conditions appear consistently, the sport is no longer functioning as intended even if mechanics appear identical.
+
+### Acceptable Variance (Across Engine Ports)
+
+The following MAY vary: rendering, animation system, networking architecture, physics solver implementation, code structure.
+
+The following MUST remain functionally equivalent:
+*   Automatic possession transfer on contact
+*   Throw immobility and survival window
+*   Head-on velocity priority resolution
+*   Density-driven cascade behavior
+*   Immediate retargeting after possession change
+*   Participation removal via hazards or knockdown
+
+**Preserve behavioral outcomes, not implementation details.**
+
+### Scale Sensitivity
+
+EFT functions across multiple population sizes but behavior changes with density.
+
+| Population | Characteristics |
+|------------|----------------|
+| Low (3v3-4v4) | Higher individual influence, more readable interactions |
+| Medium (5v5-6v6) | Frequent scrums, balanced chaos and prediction (target baseline) |
+| High (10v10+) | Heavy swarm behavior, rapid cascade resolution |
+
+The system must remain playable at low counts and chaotic at high counts without mechanical rule changes.
 
 ---
 
-## APPENDIX J -- CODE REFERENCE (REVERSE LOOKUP) <!-- id: APP-J -->
+## APPENDIX K -- CODE REFERENCE (REVERSE LOOKUP) <!-- id: APP-K -->
 
 | Mechanic ID | Name | Primary Files |
 |---|---|---|
-| **M-010** | **Physics Base** | `obj_ball.lua`, `obj_player.lua` |
+| **M-010** | **Physics Base / Ball Types** | `obj_ball.lua`, `obj_player.lua`, `prop_ball/states/speedball.lua`, `prop_ball/states/iceball.lua`, `prop_ball/states/waterball.lua` |
 | **M-030** | **Tactics - Traps** | `trigger_jumppad.lua`, `trigger_mowerblade.lua` |
 | **M-050** | **Game Flow** | `logic_teamscore.lua`, `logic_norandomweapons.lua` |
 | **M-110** | **Movement & Charge** | `sv_obj_player_extend.lua`, `status__base`, `obj_player_extend.lua` |

@@ -1,0 +1,22 @@
+"VertexLitGeneric"
+{
+	// Pure white basetexture — no base colour bleed, only the cubemap reflection shows.
+	"$basetexture"          "vgui/white"
+
+	// Cubemap reflection — picks up the nearest env_cubemap in the map.
+	"$envmap"               "env_cubemap"
+	"$envmapcontrast"       "1"       // maximum sharpness / mirror-like
+	"$envmapsaturation"     "0"       // desaturate reflection so $color2 tint drives the hue
+
+	// Ice-blue tint applied to the envmap reflection.
+	"$envmaptint"           "[0.35 0.85 1]"
+
+	// Slight base colour so the ball isn't pitch-black in areas with no cubemap.
+	"$color2"               "[0 0.4 0.55]"
+
+	// Additive blending so it layers over the stock rollermine draw cleanly.
+	"$additive"             "1"
+
+	// No backface culling — ensures the overlay renders from all angles.
+	"$nocull"               "1"
+}

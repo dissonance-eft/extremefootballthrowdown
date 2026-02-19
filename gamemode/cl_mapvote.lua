@@ -270,7 +270,8 @@ function PANEL:Init()
     self:SetPos(0, 0)
     self:SetSize(ScrW(), ScrH())
     self:MakePopup()
-    self:SetKeyboardInputEnabled(false)
+    -- Allow keyboard input so Y/U chat keys still work during the vote screen
+    self:SetKeyboardInputEnabled(true)
 
     self.mapButtons = {}
     self.winnerID = nil
@@ -294,6 +295,15 @@ end
 function PANEL:PerformLayout()
     self:SetSize(ScrW(), ScrH())
     self.closeBtn:SetPos(ScrW() - 44, 12)
+end
+
+-- Forward chat keys so players can still chat during the map vote
+function PANEL:OnKeyCodePressed(code)
+    if code == KEY_Y then
+        chat.Open(0) -- 0 = all chat
+    elseif code == KEY_U then
+        chat.Open(1) -- 1 = team chat
+    end
 end
 
 function PANEL:SetMaps(maps)

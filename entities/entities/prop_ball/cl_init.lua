@@ -15,6 +15,12 @@ function ENT:Initialize()
 	gamemode.Call("SetBallHome", self:GetPos())
 end
 
+-- Rollermine deploy thresholds (with hysteresis to prevent flicker).
+-- "Deployed" = spikes out (bodygroup 1), looks threatening at high speed.
+-- "Retracted" = closed (bodygroup 0), idle/carried state.
+local DEPLOY_SPEED    = 600   -- HU/s: above this → deploy spikes
+local RETRACT_SPEED   = 480   -- HU/s: below this → retract spikes (hysteresis gap)
+
 function ENT:Think()
 	local speed = self:GetVelocity():Length()
 	self.LerpSpeed = math.Approach(self.LerpSpeed, speed, FrameTime() * 3500)
@@ -24,6 +30,18 @@ function ENT:Think()
 		self.FlySound:Stop()
 	else
 		self.FlySound:PlayEx(math.Clamp(self.LerpSpeed / 1000, 0.05, 0.9) ^ 0.5, 75 + math.Clamp(self.LerpSpeed / 1500, 0, 1) * 100)
+	end
+
+	-- Spike deploy/retract based on speed.
+	-- Bodygroup 0 = spikes retracted (held, fumbled, slow rolling)
+	-- Bodygroup 1 = spikes deployed (thrown / fast)
+	local deployed = self:GetBodygroup(0) == 1
+	if not deployed and self.LerpSpeed >= DEPLOY_SPEED then
+		self:SetBodygroup(0, 1)
+		self:ResetSequence("open")
+	elseif deployed and self.LerpSpeed < RETRACT_SPEED then
+		self:SetBodygroup(0, 0)
+		self:ResetSequence("close")
 	end
 
 	if self:GetState() ~= self.PreviousState then
@@ -86,9 +104,16 @@ local matRing = Material("ball_halo")
 
 function ENT:DefaultDraw()
 	local carrier = self:GetCarrier()
+
+	-- Powerup states (speedball, blitzball, etc.) override team color.
+	-- CallStateFunction returns the state's color, or nil if no state / state has no GetBallColor.
+	local stateCol = self:CallStateFunction("GetBallColor", carrier)
+
 	local col = color_white
-	
-	if IsValid(carrier) then
+	if stateCol then
+		-- Active powerup: use powerup color (e.g. speedball yellow)
+		col = stateCol
+	elseif IsValid(carrier) then
 		-- Ball is being carried: use carrier's team color
 		col = team.GetColor(carrier:Team())
 	elseif self:GetWasThrown() then
@@ -98,7 +123,7 @@ function ENT:DefaultDraw()
 			col = team.GetColor(lastTeam)
 		end
 	end
-	-- If dropped (not thrown), col stays white
+	-- If dropped (not thrown) and no powerup active, col stays white
 	
 	-- Draw model with team color tint
 	render.SetColorModulation(col.r / 255, col.g / 255, col.b / 255)

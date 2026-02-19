@@ -27,6 +27,7 @@
 ---@field RoundNumber number Current round number (1-based)
 ---@field InRoundFlag boolean True if a round is currently active
 ---@field IsEndOfGameFlag? boolean Set true when EndOfGame has been called
+---@field InPostRoundFlag boolean True during the post-round window (RoundEnd → PreRoundStart)
 ---@field Instance GameManager Singleton reference
 GameManager = class("GameManager")
 
@@ -165,6 +166,9 @@ end
 function GameManager:PreRoundStart(iNum)
     local GM = GAMEMODE -- Bridge to legacy for now
 
+    -- PostRound phase is over; the new round setup begins now.
+    SetGlobalBool("InPostRound", false)
+
     -- Should the game end? Check for overtime on tied scores first.
     if CurTime() >= GM:GetTimeLimit() or self:HasReachedRoundLimit(iNum) then
         if not self:GetOvertime() and team.GetScore(TEAM_RED) == team.GetScore(TEAM_BLUE) then
@@ -271,6 +275,7 @@ function GameManager:RoundEnd()
     if GameEvents.RoundEnd then GameEvents.RoundEnd:Invoke(self.RoundNumber) end
 
     self:SetInRound(false)
+    SetGlobalBool("InPostRound", true)
 
     timer.Remove("GameManager_CheckRoundEnd")
     SetGlobalFloat("RoundEndTime", -1)
