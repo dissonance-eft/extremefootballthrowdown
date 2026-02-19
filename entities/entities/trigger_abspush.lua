@@ -1,5 +1,9 @@
 /// MANIFEST LINKS:
 /// Mechanics: M-030 (Tactics - Traps)
+-- Legacy alias: old maps used "trigger_abspush" (internal Source engine term).
+-- New maps use "trigger_jumppad" (the name players actually call them).
+-- This file is intentionally identical to trigger_jumppad.lua.
+-- When renaming entities, keep both files in sync or refactor to a shared include.
 ENT.Type = "brush"
 
 AccessorFunc(ENT, "m_Enabled", "Enabled", FORCE_BOOL)

@@ -134,6 +134,13 @@ GM.NoNonPlayerPlayerDamage = false
 GM.SelectModel = true
 GM.DeathLingerTime = 0
 
+-- Respawn timing: players auto-respawn after MinimumDeathLength seconds.
+-- The HUD shows a countdown during this window. MaximumDeathLength is a
+-- hard cap that also forces a spawn (covers the case where RespawnTime was
+-- already set by a previous death and wasn't cleared properly).
+GM.MinimumDeathLength  = 5   -- seconds before auto-respawn
+GM.MaximumDeathLength  = 10  -- hard cap: always respawn by this time
+
 GM.AutomaticTeamBalance = true
 
 
@@ -570,7 +577,7 @@ function GM:CreateTeams()
 	team.SetUp(TEAM_RED, "Red Rhinos", Color(200, 0, 0))
 	team.SetSpawnPoint(TEAM_RED, {"info_player_red", "info_player_terrorist", "info_player_rebel", "info_player_axis", "info_player_pirate"}, true)
 
-	team.SetUp(TEAM_BLUE, "Blue Bulls", Color(0, 92, 230))
+	team.SetUp(TEAM_BLUE, "Blue Bulls", Color(30, 120, 255))
 	team.SetSpawnPoint(TEAM_BLUE, {"info_player_blue", "info_player_counterterrorist", "info_player_combine", "info_player_american", "info_player_viking"}, true)
 
 	team.SetUp(TEAM_SPECTATOR, "Spectators", Color(200, 200, 200), true)

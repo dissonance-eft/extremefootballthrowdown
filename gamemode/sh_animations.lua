@@ -11,6 +11,9 @@ local ACT_HL2MP_RUN_FAST = ACT_HL2MP_RUN_FAST
 local ACT_HL2MP_IDLE_MELEE2 = ACT_HL2MP_IDLE_MELEE2
 local SPEED_CHARGE_SQR = SPEED_CHARGE_SQR
 local SPEED_RUN_SQR = SPEED_RUN_SQR
+-- Charge ANIMATION triggers 20 HU/s early (280 vs 300) so the "fast run"
+-- look is already fully blended in by the time the actual charge fires at 300.
+local SPEED_CHARGE_ANIM_SQR = 280 * 280 -- 78400
 
 function GM:HandlePlayerSwimming(pl, velocity)
 	if not pl:IsSwimming() then return false end
@@ -34,7 +37,7 @@ function GM:CalcMainActivity(pl, velocity)
 
 	if not ( self:HandlePlayerJumping( pl, velocity ) or self:HandlePlayerDucking( pl, velocity ) or self:HandlePlayerSwimming( pl, velocity ) ) then
 		local len2d = velocity:LengthSqr()
-		if len2d >= SPEED_CHARGE_SQR then
+		if len2d >= SPEED_CHARGE_ANIM_SQR then
 			pl.CalcIdeal = ACT_HL2MP_RUN_FAST
 		elseif len2d >= SPEED_RUN_SQR then
 			pl.CalcIdeal = pl:IsCarrying() and ACT_HL2MP_RUN_SLAM or ACT_MP_RUN

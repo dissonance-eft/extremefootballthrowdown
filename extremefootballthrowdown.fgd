@@ -13,11 +13,11 @@
 	points(integer) : "Points Per Goal" : 1 : "Number of points that is given when scoring."
 ]
 
-@PointClass base(Angles) studio("models/editor/playerstart.mdl") color( 255 0 0 )   = info_player_red : "EFT: Red Team Spawn."
+@PointClass base(Angles) studio("models/editor/playerstart.mdl") color( 255 0 0 )   = info_player_red : "EFT: Red Rhinos Spawn."
 [
 ]
 
-@PointClass base(Angles) studio("models/editor/playerstart.mdl") color( 0 0 255 )  = info_player_blue : "EFT: Blue Team Spawn."
+@PointClass base(Angles) studio("models/editor/playerstart.mdl") color( 0 0 255 )  = info_player_blue : "EFT: Blue Bulls Spawn."
 [
 ]
 
@@ -32,8 +32,8 @@
 
 	// Outputs
 	output onscore(void)        : "Called when anyone scores."
-	output onredscore(void)     : "Called when Red team scores."
-	output onbluescore(void)    : "Called when Blue team scores."
+	output onredscore(void)     : "Called when the Red Rhinos scores."
+	output onbluescore(void)    : "Called when the Blue Bulls scores."
 	output ongetredscore(void)  : "Called and outputs red score when getscore input is used."
 	output ongetbluescore(void) : "Called and outputs blue score when getscore input is used."
 ]
@@ -57,8 +57,8 @@
 [
 	// Inputs
 	input playtoall(string)        : "Plays the specified sound to all players including spectators."
-	input playtored(string)        : "Plays the specified sound to the red team."
-	input playtoblue(string)       : "Plays the specified sound to the blue team."
+	input playtored(string)        : "Plays the specified sound to the Red Rhinos."
+	input playtoblue(string)       : "Plays the specified sound to the Blue Bulls."
 	input playtospectators(string) : "Plays the specified sound to spectators only."
 ]
 
@@ -158,9 +158,7 @@
 	powerup(choices) : "Powerup" : "speedball" : "Which powerup to give the ball." =
 	[
 		"speedball"  : "Speed Ball"
-		"blitzball"  : "Blitz Ball"
 		"waterball"  : "Water Ball"
-		"magnetball" : "Magnet Ball"
 		"scoreball"  : "Score Ball"
 		"iceball"    : "Ice Ball"
 	]

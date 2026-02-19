@@ -3,17 +3,11 @@
 	"base"				"base"
 	"title"				"Extreme Football Throwdown"
 	"menusystem"		"1"
-	"maps"				"^xft_|^eft_"
-	"category"		"pvp"
+	"maps"				"^eft_|^xft_"
+	"category"		    "pvp"
 	"selectable"		"1"
-	"fretta_maps"
-	{
-		"1"	"xft_"
-		"2"	"eft"
-	}
-	"description"		"Continuous-play physics-based arena sport. Rocket League where you ARE the car."
+	"description"		"Third-person arena sports game. Think Rocket League where you are the car."
 
 	"author_name"	"William 'JetBoom' Moodhe"
 	"author_email"	"williammoodhe@gmail.com"
-	"author_url"	"http://www.noxiousnet.com"
 }

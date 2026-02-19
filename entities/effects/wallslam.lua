@@ -18,18 +18,6 @@ function EFFECT:Init(data)
 
 	sound.Play("Breakable.MatConcrete", pos, 80, math.Rand(95, 105))
 
-	local vBounds = Vector(6, 6, 6)
-	local vNBounds = Vector(-6, -6, -6)
-	for i=1, math.random(5, 8) do
-		local dir = ((normal * 2 + VectorRand()) * 0.3333333):GetNormalized()
-		local ent = ClientsideModel("models/props_junk/Rock001a.mdl", RENDERGROUP_OPAQUE)
-		ent:SetPos(pos + dir * 16)
-		ent:PhysicsInitBox(vNBounds, vBounds)
-		ent:SetCollisionBounds(vNBounds, vBounds)
-		ent:GetPhysicsObject():SetMaterial("rock")
-		ent:GetPhysicsObject():ApplyForceOffset(ent:GetPos() + VectorRand() * 5, dir * math.Rand(300, 800))
-		timer.SimpleEx(math.Rand(4, 6), ent.Remove, ent)
-	end
 end
 
 function EFFECT:Think()

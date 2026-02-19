@@ -829,7 +829,7 @@ concommand.Add( "seensplash", SeenSplash )
 function GM:PlayerJoinTeam( ply, teamid )
 	local iOldTeam = ply:Team()
 	if ( ply:Alive() ) then
-		if ( iOldTeam == TEAM_SPECTATOR || (iOldTeam == TEAM_UNASSIGNED && GAMEMODE.TeamBased) ) then
+		if ( iOldTeam == TEAM_SPECTATOR || (iOldTeam == TEAM_UNASSIGNED && GAMEMODE.TeamBased) || ply:IsBot() ) then
 			ply:KillSilent()
 		else
 			ply:Kill()
@@ -905,7 +905,7 @@ function GM:CheckTeamBalance()
 			if team.NumPlayers( id ) < team.NumPlayers( highest ) then
 				while team.NumPlayers( id ) < team.NumPlayers( highest ) - 1 do
 					local ply, reason = GAMEMODE:FindLeastCommittedPlayerOnTeam( highest )
-					ply:Kill()
+					ply:KillSilent() -- Suppress "suicided!" spam for bot team rebalancing
 					ply:SetTeam( id )
 					PrintMessage(HUD_PRINTTALK, ply:Name().." has been changed to "..team.GetName( id ).." for team balance. ("..reason..")" )
 				end
@@ -970,13 +970,17 @@ function GM:PlayerDeathThink( pl )
 
 	if ( GAMEMODE.NoAutomaticSpawning ) then return end
 	if ( !pl:CanRespawn() ) then return end
-	if ( GAMEMODE.MinimumDeathLength ) then 
+	if ( GAMEMODE.MinimumDeathLength ) then
 		pl:SetNWFloat( "RespawnTime", pl.DeathTime + GAMEMODE.MinimumDeathLength )
-		if ( timeDead < pl:GetRespawnTime() ) then
-			return
+		if ( timeDead < GAMEMODE.MinimumDeathLength ) then
+			return  -- still counting down, HUD shows timer
 		end
+		-- Countdown finished: auto-respawn (no key press needed in EFT)
+		pl:Spawn()
+		return
 	end
-	if ( pl:GetRespawnTime() != 0 && GAMEMODE.MaximumDeathLength != 0 && timeDead > GAMEMODE.MaximumDeathLength ) then
+	-- Fallback for gamemodes with no MinimumDeathLength: hard cap or key press
+	if ( (pl:GetRespawnTime() or 0) != 0 && (GAMEMODE.MaximumDeathLength or 0) != 0 && timeDead > GAMEMODE.MaximumDeathLength ) then
 		pl:Spawn()
 		return
 	end

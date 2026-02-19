@@ -1157,8 +1157,8 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 				self.SpecCamPos = targetPos
 				self.SpecCamActive = true
 				self.SpecCamYaw = angles.yaw
-				self.SpecCamDist = 380
-				self.SpecCamPitch = 22
+				self.SpecCamDist = 260
+				self.SpecCamPitch = 25
 			end
 
 			-- Broadcast-style focus logic (same as Spectator Cam)
@@ -1169,18 +1169,20 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 			local focusLerp = FrameTime() * 3.5
 			self.SpecCamPos = LerpVector(focusLerp, self.SpecCamPos, focusTarget)
 
+			-- Slow orbit rotation overlaid on top of velocity-based yaw tracking
+			self.SpecCamYaw = (self.SpecCamYaw or angles.yaw) + FrameTime() * 25
 			if speed2D > 50 then
 				local moveYaw = targetVel:Angle().yaw
-				if not self.SpecCamYaw then self.SpecCamYaw = moveYaw end
 				local diff = math.AngleDifference(moveYaw, self.SpecCamYaw)
-				self.SpecCamYaw = self.SpecCamYaw + diff * FrameTime() * 1.5
+				self.SpecCamYaw = self.SpecCamYaw + diff * FrameTime() * 0.5
 			end
 
-			local targetPitch = 18 + speed2D * 0.012
-			targetPitch = math.Clamp(targetPitch, 16, 30)
+			local targetPitch = 25 + speed2D * 0.008
+			targetPitch = math.Clamp(targetPitch, 22, 35)
 			self.SpecCamPitch = Lerp(FrameTime() * 1.5, self.SpecCamPitch, targetPitch)
 
-			local targetDist = 350 + speed2D * 0.12
+			-- Closer distance for celebration zoom
+			local targetDist = 240 + speed2D * 0.08
 			self.SpecCamDist = Lerp(FrameTime() * 2.0, self.SpecCamDist, targetDist)
 
 			local camAng = Angle(self.SpecCamPitch, self.SpecCamYaw or 0, 0)
@@ -1602,25 +1604,31 @@ function GM:DrawGameStateHUD()
 	local centerX = w / 2
 	local centerY = h / 2  -- True center for all displays
 
-	-- Clear local RoundWinner when server signals new round
-	-- More aggressive clearing: if the server says no result AND round is active, clear immediately.
-	-- This prevents the goal HUD from getting stuck on some clients due to network timing.
+	-- Goal text lives exactly as long as the PostRound window.
+	-- We latch WasInPostRound the first time InPostRound goes true after a goal,
+	-- then clear only once InPostRound goes false again (next pre-round starting).
+	-- This avoids the race where the GlobalBool hasn't networked yet on the very
+	-- frame TeamScored fires, which would immediately wipe RoundWinner.
 	if self.RoundWinner then
-		local noResult = GetGlobalInt("RoundResult", 0) == 0
-		local inRound = GetGlobalBool("InRound", false)
-		if noResult and inRound then
+		local inPostRound = GetGlobalBool("InPostRound", false)
+		if inPostRound then
+			self.WasInPostRound = true  -- server confirmed post-round is live
+		elseif self.WasInPostRound then
+			-- InPostRound just went false: pre-round started, clear goal text
 			self.RoundWinner = nil
 			self.RoundScorer = nil
 			self.RoundHomeRun = nil
+			self.WasInPostRound = nil
 		end
+	else
+		self.WasInPostRound = nil  -- no active goal, keep latch clean
 	end
 
 	if self.GameWinner then
 		local winnerName = team.GetName(self.GameWinner)
 		local winnerColor = team.GetColor(self.GameWinner)
 
-		draw.SimpleText("GAME OVER", "EFTGoalTextLarge", centerX, centerY - 80, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-		draw.SimpleText(winnerName .. " WIN!", "EFTScorerName", centerX, centerY + 100, winnerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText(winnerName .. " WINS!", "EFTGoalTextLarge", centerX, centerY - 80, winnerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
 	elseif self.RoundWinner then
 		local winnerColor = team.GetColor(self.RoundWinner)
@@ -1665,18 +1673,20 @@ function GM:DrawGameStateHUD()
 		draw.SimpleText(countdownText, "EFTCountDownLarge", centerX, centerY, countdownColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 	
-	-- Death respawn countdown (same large centered style)
+	-- Death respawn countdown — only during an active round.
+	-- Pre-round and post-round deaths are handled by UTIL_SpawnAllPlayers at round boundaries.
 	local lp = LocalPlayer()
-	if IsValid(lp) and not lp:Alive() and lp:Team() ~= TEAM_SPECTATOR then
+	if IsValid(lp) and not lp:Alive() and lp:Team() ~= TEAM_SPECTATOR
+	and GetGlobalBool("InRound", false) and not GetGlobalBool("InPostRound", false) then
 		local respawnTime = lp:GetNWFloat("RespawnTime", 0)
 		local timeLeft = respawnTime - CurTime()
-		
+
 		if timeLeft > 0 then
 			local countdownNum = math.ceil(timeLeft)
 			local pulse = math.abs(math.sin(CurTime() * 6)) * 0.3
 			local alpha = 200 + pulse * 55
 			local deathColor = Color(255, 60, 60, alpha)
-			
+
 			-- Large countdown number
 			draw.SimpleText(tostring(countdownNum), "EFTCountDownLarge", centerX, centerY, deathColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 			-- "RESPAWNING" label above
@@ -1792,7 +1802,6 @@ function GM:DrawScoreboard()
     -- Time Logic
     local timeleft = 0
     local isWarmup = self:IsWarmUp()
-    local isCelebration = self.RoundWinner ~= nil
     local roundStartTime = GetGlobalFloat("RoundStartTime", 0) -- Pre-round countdown target
     local roundStartedAt = GetGlobalFloat("RoundStartedAt", 0) -- When round actually started
     local roundEndsAt = GetGlobalFloat("RoundEndsAt", 0) -- Absolute end timestamp (SINGLE SOURCE OF TRUTH)
@@ -1801,24 +1810,26 @@ function GM:DrawScoreboard()
     local roundNum = GetGlobalInt("RoundNumber", 1)
     local isPreRound = roundStartTime > CurTime() and not isWarmup
     
+    -- The round clock is frozen during celebration, post-round, and pre-round.
+    -- Only tick down when the round is actually live (RoundStart has fired and
+    -- set a fresh RoundEndsAt). This eliminates the 1-frame desync between
+    -- PreRoundStart (clears InPostRound, sets InRound) and RoundStart (sets
+    -- RoundEndsAt) where the client would briefly show a stale RoundEndsAt.
+    local inPostRound = GetGlobalBool("InPostRound", false)
+    local roundIsLive = GetGlobalBool("InRound", false) and not isPreRound and not inPostRound
+
     if isWarmup then
-    	-- During warmup, show warmup countdown
     	timeleft = math.max(0, self.WarmUpLength - CurTime())
-    elseif isCelebration or isPreRound then
-    	-- During goal celebration OR pre-round: show the server's saved time.
-    	-- GameTimeRemaining is set by the server at the exact moment of the goal.
-    	-- This is the single source of truth — no client-side snapshot needed.
-    	if roundNum == 1 or gameTimeRemaining <= 0 then
-    		timeleft = self.GameLength * 60
-    	else
-    		timeleft = gameTimeRemaining
-    	end
-    elseif roundEndsAt > 0 then
-    	-- Normal gameplay - use RoundEndsAt (same value server checks)
+    elseif roundIsLive and roundEndsAt > 0 then
+    	-- Active gameplay: use RoundEndsAt (same value server checks against).
     	timeleft = roundEndsAt - CurTime()
+    elseif gameTimeRemaining > 0 then
+    	-- Frozen clock: celebration, post-round, or pre-round countdown.
+    	-- GameTimeRemaining is snapshotted by the server at the moment of each goal.
+    	timeleft = gameTimeRemaining
     else
-    	-- Fallback if round hasn't started yet
-    	timeleft = roundDuration
+    	-- First round or no saved time yet — show full game length.
+    	timeleft = self.GameLength * 60
     end
     timeleft = math.max(0, timeleft)
     
@@ -1987,6 +1998,7 @@ function GM:TeamScored(teamid, hitter, points, homerun)
 	self.RoundEndScroll = 0
 	self.RoundEndCameraTime = RealTime()
 	self.RoundHomeRun = homerun
+	-- Goal text cleared by InPostRound going false (server-driven), not a timer.
 end
 net.Receive("eft_teamscored", function(length)
 	local teamid = net.ReadUInt(8)
