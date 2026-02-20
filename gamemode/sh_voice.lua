@@ -34,6 +34,7 @@ local VS_BARNEY = {
 	[VOICESET_MAD]        = { Sound("vo/npc/Barney/ba_damnit.wav"), Sound("vo/npc/Barney/ba_no02.wav"), Sound("vo/npc/Barney/ba_no01.wav"), Sound("vo/Streetwar/rubble/ba_damnitall.wav") },
 	[VOICESET_TAUNT]      = { Sound("vo/npc/Barney/ba_yell.wav"), Sound("vo/npc/Barney/ba_downyougo.wav"), Sound("vo/npc/Barney/ba_laugh02.wav"), Sound("vo/npc/Barney/ba_ohyeah.wav") },
 	[VOICESET_TAKEBALL]   = { Sound("vo/npc/Barney/ba_letsdoit.wav"), Sound("vo/npc/Barney/ba_letsgo.wav"), Sound("vo/npc/Barney/ba_bringiton.wav") },
+	[VOICESET_THROW]      = { Sound("vo/npc/Barney/ba_yell.wav"), Sound("vo/npc/Barney/ba_pain10.wav"), Sound("vo/npc/Barney/ba_pain08.wav") },
 	[VOICESET_OVERHERE]   = { Sound("vo/Streetwar/sniper/ba_overhere.wav") }
 }
 
@@ -47,6 +48,7 @@ local VS_ALYX = {
     [VOICESET_MAD]        = { Sound("vo/npc/Alyx/dammit01.wav"), Sound("vo/npc/Alyx/dammit02.wav"), Sound("vo/npc/Alyx/what_is_that.wav") },
     [VOICESET_TAUNT]      = { Sound("vo/npc/Alyx/watchout01.wav"), Sound("vo/npc/Alyx/watchout02.wav"), Sound("vo/npc/Alyx/al_excuseme.wav") },
     [VOICESET_TAKEBALL]   = { Sound("vo/npc/Alyx/lets_go_this_way.wav"), Sound("vo/npc/Alyx/ok01.wav") },
+    [VOICESET_THROW]      = { Sound("vo/npc/Alyx/uggh01.wav"), Sound("vo/npc/Alyx/uggh02.wav"), Sound("vo/npc/Alyx/hurt08.wav") },
     [VOICESET_OVERHERE]   = { Sound("vo/npc/Alyx/overhere01.wav") }
 }
 
@@ -60,6 +62,7 @@ local VS_MALE01 = {
 	[VOICESET_MAD]        = { Sound("vo/npc/male01/gethellout.wav"), Sound("vo/npc/male01/ohno.wav"), Sound("vo/npc/male01/run01.wav") },
 	[VOICESET_TAUNT]      = { Sound("vo/npc/male01/excuseme02.wav"), Sound("vo/npc/male01/overhere01.wav"), Sound("vo/npc/male01/watchout.wav") },
 	[VOICESET_TAKEBALL]   = { Sound("vo/npc/male01/ok01.wav"), Sound("vo/npc/male01/ok02.wav"), Sound("vo/npc/male01/letsgo01.wav") },
+	[VOICESET_THROW]      = { Sound("vo/npc/male01/headsup01.wav"), Sound("vo/npc/male01/headsup02.wav"), Sound("vo/npc/male01/pain07.wav") },
 	[VOICESET_OVERHERE]   = { Sound("vo/npc/male01/overhere01.wav") }
 }
 
@@ -73,6 +76,7 @@ local VS_FEMALE01 = {
     [VOICESET_MAD]        = { Sound("vo/npc/female01/gethellout.wav"), Sound("vo/npc/female01/ohno.wav"), Sound("vo/npc/female01/run01.wav") },
     [VOICESET_TAUNT]      = { Sound("vo/npc/female01/excuseme01.wav"), Sound("vo/npc/female01/excuseme02.wav"), Sound("vo/npc/female01/gethellout.wav") },
     [VOICESET_TAKEBALL]   = { Sound("vo/npc/female01/ok01.wav"), Sound("vo/npc/female01/ok02.wav"), Sound("vo/npc/female01/letsgo01.wav") },
+    [VOICESET_THROW]      = { Sound("vo/npc/female01/pain07.wav"), Sound("vo/npc/female01/pain08.wav"), Sound("vo/npc/female01/pain09.wav") },
     [VOICESET_OVERHERE]   = { Sound("vo/npc/female01/overhere01.wav") }
 }
 
@@ -86,6 +90,7 @@ local VS_BREEN = {
 	[VOICESET_MAD]        = { Sound("vo/Citadel/br_no.wav"), Sound("vo/Citadel/br_youfool.wav"), Sound("vo/Citadel/br_mock05.wav") },
 	[VOICESET_TAUNT]      = { Sound("vo/Citadel/br_youfool.wav"), Sound("vo/Citadel/br_laugh01.wav"), Sound("vo/Citadel/br_mock09.wav") },
 	[VOICESET_TAKEBALL]   = { Sound("vo/Citadel/br_mock06.wav") },
+	[VOICESET_THROW]      = { Sound("vo/Citadel/br_ohshit.wav"), Sound("vo/Citadel/br_youfool.wav"), Sound("vo/Citadel/br_no.wav") },
 	[VOICESET_OVERHERE]   = { Sound("vo/Citadel/br_mock13.wav") }
 }
 
