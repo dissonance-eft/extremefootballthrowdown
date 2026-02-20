@@ -3,7 +3,7 @@
 **Extreme Football Throwdown (EFT)** is a continuous collision sport where a swarm of players repeatedly interrupts and reassigns possession of a ball that automatically attaches to whoever physically contacts it after a tackle or throw event. Players do not "choose" possession — possession happens to them.
 
 *   **Distinctiveness:** EFT combines the continuous flow of Hockey/Rocket League with the physical combat of a brawler. There are no stable offensive/defensive phases. Everyone is always charging and trying to tackle someone. If your target has the ball, that's defense. If your target is chasing the ball carrier, that's offense. Same action, different target. Roles are fluid, not fixed.
-*   **Core Loop:** Engage → Tackle → Displacement → Auto-possession transfer → Immediate retarget → Repeat. Because carriers are slower than defenders (~265 vs 350 HU/s), offense and defense invert multiple times in a single scramble. Goals occur when the system fails to interrupt a carrier for a brief window — not because a structured play succeeds.
+*   **Core Loop:** Engage → Tackle → Displacement → Auto-possession transfer → Immediate retarget → Repeat. Because carriers are slower than defenders (~263 vs 350 HU/s), offense and defense invert multiple times in a single scramble. Goals occur when the system fails to interrupt a carrier for a brief window — not because a structured play succeeds.
 *   **Possession is the spark — and a curse.** The ball is a target marker, not a reward. It glues to you on contact and paints every opponent's crosshair on your back. The game's thrill comes from seizing it, defending it, and ripping it away in rapid succession. There is no "setup" offense, no "safe" carry. Possession is continuously decaying under pressure.
 *   **Auto-pickup:** The ball attaches instantly to anyone who touches it. No key, no delay, no confirmation animation. New players are frequently surprised by sudden turnovers caused by running into a loose ball. "Oh shit I have it" moments create instant retargeting and maintain pace. This is intentional — it fuels rapid offense/defense flips and keeps every scramble contested.
 *   **Passing is high-risk, high-reward.** A ~1s windup leaves the carrier nearly stationary and exposed. Passes are most effective when chaos gives a second of breathing room; otherwise, running is safer. Bounced or contested catches are the norm, not clean transfers.
@@ -63,7 +63,7 @@ LLMs and bot designers should think of EFT as **"Rocket League but you ARE the c
 5. **Scrums = kickoffs** -- Both teams converge on ball, chaos ensues, someone breaks out
 6. **No assigned positions** -- Everyone reads the field and makes local decisions
 7. **Continuous clock** -- Only stops briefly after goals, then immediate ball-at-center restart
-8. **The carrier is slow** -- 265 HU/s vs 350 HU/s empty. They WILL be caught. Must score fast or pass
+8. **The carrier is slow** -- ~263 HU/s vs 350 HU/s empty. They WILL be caught. Must score fast or pass
 9. **Tackles are the baseline** -- Like bumps/demos in RL. They happen constantly. Not highlights
 10. **Map geometry matters** -- Jump pads, ramps, hazards create routing decisions like boost pads
 
@@ -281,20 +281,20 @@ Arena geometry regulates gameplay timing and interaction density. Maps are not s
 
 | Property | Value | Notes |
 |----------|-------|-------|
-| Gravity | 800 HU/s^2 | |
-| Friction | 6.0 | |
-| Accelerate | 5.0 | |
-| Air accelerate | 10.0 | High air control |
+| Gravity | 600 HU/s^2 | Reduced from Source default of 800 |
+| Friction | 6.0 | Engine default (not set by gamemode) |
+| Accelerate | 5.0 | Engine default (not set by gamemode) |
+| Air accelerate | 10.0 | Engine default (not set by gamemode) |
 | Base max speed | 350.0 HU/s | Empty-handed |
-| Carrier speed | 265.0 HU/s | 75% of max |
+| Carrier speed | 262.5 HU/s | 75% of max (350 × 0.75) |
 | Pity carrier speed | 315.0 HU/s | 90% of max |
-| Strafe-only speed | 120.0 HU/s | When not pressing forward |
+| Strafe-only speed | 160.0 HU/s | When not pressing forward |
 | Charge threshold | 300.0 HU/s | Must exceed to tackle |
-| Wiggle boost | +10 HU/s | Mouse micro-turn at max speed |
-| Bhop cap | 700.0 HU/s | Soft cap |
+| Wiggle boost | ~+10 HU/s | Emergent from Source air strafing (not a code constant) |
+| Bhop cap | Engine-controlled | Source engine handles via sv_maxvelocity (default 3500) |
 
 *   **Charge State:** Active when grounded and speed > 300 HU/s. The charge animation begins at 280 HU/s so the visual reads as already threatening by the time the tackle fires.
-*   **Charge State Economy:** Carriers always operate below charge threshold (~265 HU/s), making them prey. Defenders must build to 300+ to tackle, then manage wall contact and turning penalties to maintain speed. Teammates' core job is to body-block pursuers (legal at any speed) and buy the carrier a route to the goal or a throw window. A carrier's survival depends on tight turns, wall bounces to reset angles, and ramp-boosted exits — not on outrunning defenders.
+*   **Charge State Economy:** Carriers always operate below charge threshold (~263 HU/s), making them prey. Defenders must build to 300+ to tackle, then manage wall contact and turning penalties to maintain speed. Teammates' core job is to body-block pursuers (legal at any speed) and buy the carrier a route to the goal or a throw window. A carrier's survival depends on tight turns, wall bounces to reset angles, and ramp-boosted exits — not on outrunning defenders.
 *   **Acceleration:** ~1.5s to reach max speed from stop; ~1.0s to reach charge threshold.
 *   **Wall Punishment:** Hitting any obstacle sets speed to 0. Requires full re-acceleration.
 
@@ -329,7 +329,6 @@ Key properties:
 | Knockdown duration | 2.75 seconds |
 | Post-hit immunity | 0.45 seconds |
 | Anti-stunlock immunity (per-attacker) | 2.0 seconds |
-| Global anti-stunlock immunity | 3.75 seconds |
 | Total effective removal from play | ~4-5 seconds (knockdown + re-acceleration) |
 
 *   **Recovery:** Player must stand up (anim) and accelerate. Total effective removal from play ~4-5s.
@@ -341,8 +340,7 @@ Key properties:
 | Property | Value |
 |----------|-------|
 | Charge threshold | 300.0 HU/s |
-| Tackle cone | 90 degrees (+/-45) |
-| Tackle range | 80 HU |
+| Tackle range | BoundingRadius() (dynamic, ~24 HU per player) |
 | Knockdown duration | 2.75 seconds |
 | Impact force | Target velocity = charger velocity x 1.65 |
 | Attacker recoil | Velocity x -0.03 (nearly stops) |
@@ -408,16 +406,13 @@ Key properties:
 
 | Property | Value |
 |----------|-------|
-| Range | 48 HU |
-| Cooldown | 0.25 seconds |
-| Lock duration | 0.20 seconds |
-| Cross-counter window | 0.18 seconds |
+| Range | BoundingRadius() (dynamic, same as tackle) |
+| State duration | 0.5 seconds (full punch animation lock) |
+| Cross-counter window | Last 0.2 seconds of punch state |
 | Force | 360 impulse |
-| Carrier disruption stun | 0.10 seconds |
-| Carrier knockback | 120 HU/s |
 
 ### 7. Possession Rules <!-- id: M-150 -->
-*   **Pickup:** Touch ball within radius (64 HU).
+*   **Pickup:** Touch ball trigger (prop_balltrigger uses Roller_Spikes.mdl physics hull).
 *   **Strip:** Tackle causes immediate fumble.
 *   **Passing:** Throwing forces possession loss.
 *   **Carrier:** Entity holding ball. Speed capped. Cannot initiate tackles (must drop/throw first).
@@ -433,11 +428,10 @@ Key properties:
 | Fumble horizontal velocity | Carrier velocity x 1.75 |
 | Fumble vertical pop | 128 HU/s |
 | Ball mass | 25 |
-| Ball damping | 0.25 |
+| Ball damping | 0.01 linear, 0.25 angular |
 | Bounce reduction | 0.75x velocity on bounce |
-| Pickup radius | 64 HU |
-| General immunity (after drop) | 1.0s |
-| Team pass immunity | 0.25s after throw |
+| General immunity (after drop) | 1.0s (m_PickupImmunity) |
+| Team pass immunity | 0.2s after throw (ball); 0.25s (carry items) |
 
 *   **State:** Ball becomes `STATE_FREE`.
 *   **Ball behavior:** Static/heavy. Does not roll freely. Bounces on steep ramps.
@@ -449,11 +443,10 @@ Key properties:
 |----------|-------|
 | Input | Hold RMB to windup, release to throw |
 | Windup time | 1.0 seconds (max power) |
-| Movement during windup | 100 HU/s (SPEED_THROW -- very slow shuffle) |
+| Movement during windup | 0 HU/s (completely frozen in place) |
 | Arc type | Grenade (gravity-affected parabolic) |
-| Throw impulse | Forward: 800, Up: 150 |
+| Throw impulse | 1100 along aim vector (single directional force) |
 | Speedball windup | 0.5x (faster) |
-| Speedball throw force | 1.25x |
 | Speedball carrier speed | 1.5x (stacks with carrier penalty) |
 
 **Throw Commitment Window (The Longest Voluntary Vulnerability):**
@@ -539,9 +532,7 @@ Throwing is the longest voluntary vulnerability state in the game. During throw,
 | Match time | 15 minutes (900s) |
 | Ball reset timer | 20 seconds untouched |
 | Warmup | 30 seconds |
-| Respawn delay | 4.5s (then press attack/jump to spawn) |
-| Spawn freeze | 2.0s (anchored) |
-| Spawn ghost | 1.5s (no collision) |
+| Respawn delay | 5.0s auto-respawn (MinimumDeathLength) |
 
 **BonusTime (Timer Sync):** After each goal, celebration + pre-round time (~11s) is added back to the game clock. This ensures the round timer only counts live play time.
 
@@ -550,7 +541,7 @@ Throwing is the longest voluntary vulnerability state in the game. During throw,
 - **ConVar:** `eft_pity` (default: **4**)
 - **Trigger:** One team trails by 4+ goals
 - **Effect:** Losing team's ball carrier speed multiplier changes from 0.75x to 0.9x of max speed
-- Result: Pity carrier moves at ~315 HU/s instead of ~265 HU/s
+- Result: Pity carrier moves at ~315 HU/s instead of ~263 HU/s
 - Still slower than empty-handed chasers (350 HU/s)
 - **Not a separate "Rage Mode"** -- just the ball entity's `Move()` function checking `HasPity()`
 
@@ -624,7 +615,7 @@ Charge state (>=300 HU/s + grounded) is the single most important resource in EF
 | Just landed from jump, 280 HU/s | NO | Vulnerable -- anyone can tackle you freely |
 | Hit a wall, 0 HU/s | NO | DEAD -- the swarm eats you |
 | Sharp turn, dropped to 290 | NO | Exposed -- briefly vulnerable |
-| Ball carrier at 265 | NO (usually) | Target -- everyone is chasing you |
+| Ball carrier at ~263 | NO (usually) | Target -- everyone is chasing you |
 | Pity carrier at 315 | YES | Dangerous -- carrier CAN tackle defenders |
 
 **The "1.5-second eternity":**
@@ -692,17 +683,6 @@ At the highest level, EFT is PRIMARILY about mindgames and prediction, NOT mecha
 - Every yaw adjustment > 4 degrees per frame costs speed
 - Good players make micro-corrections (1-3 degrees) to stay in the grace zone
 - They read the field geometry far ahead so they never NEED to turn sharply
-
-**The "Feel" Spectrum:**
-
-| Skill | Pub Player | Competitive | Elite (EFL) |
-|-------|-----------|-------------|-------------|
-| Speed management | Hits walls constantly | Avoids most walls | NEVER hits walls. Perfect arcs |
-| Charge awareness | Doesn't know it exists | Stays above 300 | Manages speed like boost in RL |
-| Jump discipline | Jumps randomly | Jumps tactically | Only jumps with purpose |
-| Throw decision | Throws when panicked | Throws to open teammate | Almost never throws (runs > passes) |
-| Rotation | Chases ball like magnet | Stays near carrier | Covers space, cuts angles |
-| Prediction | Chases current position | Leads slightly | Calculates intercept angles |
 
 ### The Player Decision Model <!-- id: FEEL-DECISIONS -->
 
@@ -773,7 +753,7 @@ I HAVE THE BALL. What do I do?
 - Goal-side positioning: always between carrier and your goal
 - Ramp awareness: take ramps over jumps to maintain speed
 
-**Reaction time barely matters because:** 90-degree tackle cone, 80 HU proximity trigger, carrier always slower, head-ons decided by speed not clicks, meaningful decisions happen 1-2 seconds before contact.
+**Reaction time barely matters because:** Forward-facing proximity detection (BoundingRadius), carrier always slower, head-ons decided by speed not clicks, meaningful decisions happen 1-2 seconds before contact.
 
 #### 18.6 The Emotional Arc of a Match
 
@@ -899,7 +879,7 @@ Maps are not scenery or movement puzzles — they are **behavioral regulators** 
 | Max possession | 20.5 seconds |
 | Chaos spikes per match | 22 |
 
-Carrier at 265 HU/s vs Defenders at 350 HU/s = defenders WILL catch up. Carrier has ~2 seconds of clear running before tackle or pass is forced.
+Carrier at ~263 HU/s vs Defenders at 350 HU/s = defenders WILL catch up. Carrier has ~2 seconds of clear running before tackle or pass is forced.
 
 ---
 
@@ -1100,7 +1080,7 @@ function ResolveTackle(attacker, victim) ...
 
 **The Axiom:** During active play, most players should be within a few seconds of influencing a scoring attempt or its prevention.
 
-**Why:** Short respawn (~4s) ensures return to the same tactical "sentence." Maps maximize convergence. Possession instability keeps the battle moving. No fixed roles means everyone can engage.
+**Why:** Short respawn (~5s) ensures return to the same tactical "sentence." Maps maximize convergence. Possession instability keeps the battle moving. No fixed roles means everyone can engage.
 
 **Violation:** If a player spends >10s running to catch up to play, the map or movement speed is broken.
 
@@ -1306,31 +1286,29 @@ units:
   hu_s2: "Hammer Units per second squared (acceleration)"
 
 physics:
-  gravity: 800
+  gravity: 600
   friction: 6.0
   accelerate: 5.0
   airaccelerate: 10.0
-  bunnyhop_cap: 700.0
+  bunnyhop_cap: "engine-controlled (sv_maxvelocity)"
 
 speeds:
   base_max: 350.0
-  carrier_normal: 265.0
+  carrier_normal: 262.5
   carrier_rage: 315.0
-  strafe_only: 120.0
+  strafe_only: 160.0
   charge_threshold: 300.0
   wiggle_boost: 10.0
 
 tackle:
   threshold_speed: 300.0
-  cone_angle: 90
-  range: 80
+  range: "BoundingRadius() (dynamic)"
   knockdown_duration: 2.75
   force_multiplier: 1.65
   attacker_recoil: -0.03
   immunity:
     post_hit: 0.45
     per_attacker: 2.0
-    global_anti_stunlock: 3.75
   damage:
     charge: 5
     punch: 25
@@ -1347,45 +1325,39 @@ dive:
   crouching: disabled
 
 punch:
-  range: 48
-  cooldown: 0.25
-  lock_duration: 0.20
-  cross_counter_window: 0.18
+  range: "BoundingRadius() (dynamic, ~24 HU)"
+  state_duration: 0.5
+  cross_counter_window: 0.2  # last 0.2s of punch animation
   force: 360
-  carrier_disruption:
-    stun: 0.10
-    knockback: 120
 
 jump:
   vertical_speed: 200
-  cooldown: 0.3
   breaks_charge_state: true
 
 throwing:
   base_windup: 1.0
-  movement_during: 100
+  movement_during: 0  # speed is set to 0 during windup (SPEED_THROW is unused)
   arc_type: "grenade"
-  impulse_forward: 800
-  impulse_up: 150
+  impulse: 1100  # single directional force along aim vector
   speedball_modifiers:
     windup: 0.5
-    throw_force: 1.25
     carrier_speed: 1.5
 
 ball:
   mass: 25
-  damping: 0.25
+  damping_linear: 0.01
+  damping_angular: 0.25
   bounce_reduction: 0.75
   fumble_velocity:
     horizontal: 1.75
     vertical: 128
   pickup:
-    radius: 64
+    trigger: "prop_balltrigger (Roller_Spikes.mdl physics hull)"
     auto_pickup: true
     knocked_down_can_pickup: false
   immunity_timers:
     general: 1.0
-    team_pass: 0.25
+    team_pass: 0.2  # ball uses 0.2s; carry items use 0.25s
   reset_triggers:
     - "untouched_20s"
     - "enters_water"
@@ -1423,9 +1395,7 @@ game_rules:
     trigger_deficit: 4
     carrier_speed_multiplier: 0.90
   respawn:
-    delay: 4.5
-    spawn_freeze: 2.0
-    spawn_ghost: 1.5
+    delay: 5.0  # MinimumDeathLength; auto-respawn, no key press needed
 
 team_sizes:
   minimum: 3
@@ -1482,7 +1452,7 @@ excluded:
 
 | Input | Neutral | Airborne | Ball Carrier |
 |-------|---------|----------|-------------|
-| **WASD** | Move (350 HU/s) | Air Strafe | Move (265 HU/s) |
+| **WASD** | Move (350 HU/s) | Air Strafe | Move (~263 HU/s) |
 | **JUMP** | Jump (+200 z) | -- | Jump |
 | **CROUCH** | Crouch | Auto Height | Crouch |
 | **LMB** | Punch | Punch | Punch (defensive) |

@@ -43,7 +43,7 @@ Originally created by **JetBoom** (William Moodhe) in 2012 on NoxiousNet. 275,00
 - **Head-On Collisions** — Two chargers hit each other? Higher speed wins. Tiny differences matter. The best players "curve" into hits to gain a few extra units of speed
 - **Cross-Counter** — A perfectly timed punch can parry an incoming charge. Extremely tight window
 
-**The carrier is always slower.** 265 speed vs everyone else's 350. You're the target. Teammates help by body-blocking defenders to buy you a lane or a throwing window.
+**The carrier is always slower.** ~263 speed vs everyone else's 350. You're the target. Teammates help by body-blocking defenders to buy you a lane or a throwing window.
 
 ## Teams
 
