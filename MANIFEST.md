@@ -9,6 +9,7 @@
 *   **Passing is high-risk, high-reward.** A ~1s windup leaves the carrier nearly stationary and exposed. Passes are most effective when chaos gives a second of breathing room; otherwise, running is safer. Bounced or contested catches are the norm, not clean transfers.
 *   **Tackles are first-class outcomes.** A tackle that strips the ball from a breakaway carrier is as game-changing as a goal. The scoreboard tracks both. Tackling is not only about taking the ball — it is about disqualifying opponents from the next interaction cycle.
 *   **The real resource is upright participation.** The key resource in EFT is not territory or spacing — it is how many upright, charging players are near the next possession change. Knockdowns, swimming, wall hits, and respawns don't deal damage; they remove participation. "Creating space" means reducing the number of upright opponents who can contest the next 1-2 seconds.
+*   **The central skill.** A good EFT player is not the one who controls the ball longest. A good EFT player is the one who is correctly positioned at the highest number of state transitions. This explains why head-ons mattered, why scrums mattered, why passing was rare but decisive, and why new players chased the carrier while good players anticipated the collapse.
 *   **Inviolable Warning:** **If a change makes the game cleaner but reduces tension, contested interactions, or reversals, the change is WRONG even if technically sound.** Visual polish must never weaken interaction properties. "Cleaner" behavior that reduces possession volatility or interaction density breaks the sport.
 *   **Contract:** This document is both the "soul" of the game and the strict implementation contract. Code must serve this manifest. The Lua code is a reference implementation; the manifest is the behavioral specification.
 
@@ -674,6 +675,119 @@ Players should NOT commonly feel:
 
 **If player perception shifts toward planning instead of reacting, the implementation has diverged.**
 
+### Cross-Domain Validation <!-- id: FEEL-DOMAINS -->
+
+> **PURPOSE:** Eight real-world systems from unrelated domains independently converge on the same behavioral invariants as EFT. Each domain extracts a principle that can be used to validate or diagnose EFT implementations. If a mechanic violates a domain's extracted invariant, it is probably wrong.
+
+**The unified conclusion across all domains:**
+
+> EFT is not a positional sport. EFT is a state transition ecosystem. The ball is not a goal object — it is a moving state generator. Players are not actors — they are reactive agents in a continuously collapsing and reforming interaction field.
+
+---
+
+#### Domain 1 — Rugby Ruck / Broken Play
+
+In rugby, the ball is rarely "owned." It is protected while vulnerable. Players don't guard space — they guard the transfer event. What matters is not scoring. What matters is who is upright near the ball at the moment of transition.
+
+**Extracted invariant:** Possession is determined by proximity + stability at the instant of state change, not planning.
+
+**EFT application:** The important skill is not carrying — it is being upright and facing the right direction when the carrier stops being upright. Bots and players should prioritize proximity to instability, not goal anticipation.
+
+---
+
+#### Domain 2 — Predator Mobbing (Birds Harassing a Hawk)
+
+Observed behavior: agents do not attack simultaneously. They probe. One commits when perceived risk dips. Others fill immediately after disengagement.
+
+**Extracted invariant:** Continuous pressure comes from alternating commitment, not simultaneous commitment. Engagement is staggered.
+
+**EFT application:** This is exactly why scrums don't freeze. Players naturally cycle: approach → feint → tackle → recover → rejoin. Bots that simultaneously commit produce "dogpile syndrome" — everyone arrives at once, knocks each other around, and the carrier escapes untouched. Staggered pressure is the correct model.
+
+---
+
+#### Domain 3 — Traffic Shockwave Flow
+
+In traffic systems: disturbance → compression → release → re-compression. No driver coordinates this. Density causes it.
+
+**Extracted invariant:** Local disruptions propagate outward then re-center on a moving attractor.
+
+**EFT application:** Tackle = disturbance. Fumble = wave collapse. New carrier = new attractor. Players do not "switch targets consciously." They snap. Good human players exhibit instant target migration. Bots must replicate this — immediate reorientation to the new attractor, no lingering pathing toward the previous carrier.
+
+---
+
+#### Domain 4 — Financial Market Microstructure
+
+In high-frequency trading, ownership of an asset changes rapidly in high-interaction zones. The decisive agents are not those predicting long-term value — they are physically positioned (order queue priority) at the instant liquidity appears.
+
+**Extracted invariant:** The advantage belongs to the agent closest to the transfer interface, not the agent with the best long-term plan.
+
+**EFT application:** Ball pickup is a contact interface. Strategic positioning at the scrum edge > running lanes > goal anticipation. A bot positioned on the scrum perimeter when the carrier falls picks up the ball. A bot already running toward the goal does not. This single principle makes bots look human.
+
+---
+
+#### Domain 5 — Multi-Agent Pursuit/Evasion Robotics
+
+Multiple drones intercept a moving target using only local sensing. They do not plan a route to the target's goal. They maintain a shrinking envelope around the target's movement potential.
+
+**Extracted invariant:** Control is achieved by surrounding movement potential, not intercepting final destination.
+
+**EFT application:** Good players don't run to the goal line — they compress the carrier's available movement options. Attacking angles rather than chasing position. A bot that always charges directly at the carrier is trivially juked. A bot that cuts off the carrier's likely exit angle is not.
+
+---
+
+#### Domain 6 — Basketball Pickup (Uncoached, 3v3)
+
+Nobody assigns roles, yet functional spacing appears. Players unconsciously fill gaps, avoid redundancy, and reposition after contact. The shared focal object (ball) anchors spacing without communication.
+
+**Extracted invariant:** Humans maintain functional spacing without communication when a shared focal object exists.
+
+**EFT application:** The ball is the spacing anchor. Bots that cluster directly behind teammates or run parallel chase paths produce redundant coverage. Angular diversity around the carrier — multiple approach vectors — produces emergent coordination that looks coached but isn't.
+
+---
+
+#### Domain 7 — Fighting Game Neutral (Prediction Layer)
+
+In high-level fighting games, winning exchanges are not mechanical. They occur when one player commits to an action space before the other recognizes the commitment window.
+
+**Extracted invariant:** Skill is detecting commitment windows, not reacting to completed actions.
+
+**EFT application:** The throw windup is a commitment window. The correct response is to target throw startup — not wait for ball release. A carrier standing still is already in a commitment window: they are about to throw or they are already absorbing a tackle. Bots should treat stationary carriers as highest-priority threats, not neutral actors.
+
+---
+
+#### Domain 8 — Cellular Automata State Transitions
+
+Each cell has only local rules. Complex global patterns emerge from local transitions, not from any cell knowing the global state.
+
+**Extracted invariant:** Complex emergent behavior does not require complex agents. It requires correct local state transitions.
+
+**EFT application:** This is the most important bot design lesson. Do not give bots strategy trees. Give them correct state reactions.
+
+```
+IF near carrier AND carrier unstable → position for pickup
+IF carrier just fell               → snap to loose ball (instant)
+IF I am knocked down               → recover → return to nearest conflict
+IF teammate has ball               → maintain angular diversity, not formation
+IF throwing window detected        → commit immediately, not on release
+```
+
+The complexity the player perceives ("those bots feel smart") emerges from correct local rules, not from any bot knowing "the plan."
+
+---
+
+#### Synthesized Bot Design Rule
+
+All eight domains reinforce the same priority order for bot decision-making:
+
+1. **Be upright** — participation is the resource
+2. **Be near the current transfer interface** — not the previous one, not the predicted goal
+3. **Snap to new attractors instantly** — no lingering on old targets
+4. **Stagger commitment** — probe, not dogpile
+5. **Attack angles, not positions** — compress options, don't chase location
+6. **Maintain angular diversity** — never parallel, never clustered
+7. **Detect commitment windows** — act on windup, not release
+8. **Local rules only** — no strategy trees; correct transitions produce emergent strategy
+
 ### Veteran Gameplay Knowledge <!-- id: FEEL-VETERAN -->
 
 **Mindgames Over Mechanics:**
@@ -1191,6 +1305,21 @@ Temple Sacrifice (11), Space Jump (8), Baseball Dash (7) = many hazard spots.
 > **Purpose:** Bots exist to prevent empty-server inertia and maintain engagement density. They are population scaffolding, not dominance agents. They must: keep the server "alive" at low population, preserve swarm identity and contested possession loops, leave as humans join (already implemented), and never dominate humans. Bots should feel like mid-level humans: active, sometimes wrong, sometimes brilliant, often chaotic. They should be tuned by prediction horizon and decision quality, not raw mechanical advantage.
 >
 > **The Rocket League Bot Philosophy:** Each bot is an independent agent making LOCAL decisions based on spatial awareness. No centralized "play caller." Emergent coordination from individual intelligence. Bots should prioritize being upright near the next interaction, re-entering conflict after displacement, and influencing transitions rather than "running plays." Passing behavior should be modeled as interruption prediction (can I survive the >1s throw window?), not receiver targeting perfection.
+
+### Domain-Validated Design Constraints
+
+Before writing any bot logic, confirm it satisfies the cross-domain invariants from `FEEL-DOMAINS`:
+
+| Domain | Constraint | Anti-pattern it prevents |
+|--------|-----------|-------------------------|
+| Rugby Ruck | Position for transition, not goal | Bots pre-running to goal line |
+| Predator Mobbing | Stagger commitment, don't dogpile | All bots committing simultaneously |
+| Traffic Shockwave | Instant target migration on possession change | Bots lingering on old carrier |
+| Market Microstructure | Scrum edge > running lanes | Bots "clearing out" from the fight |
+| Pursuit/Evasion | Attack angles, not positions | Bots running directly at carrier |
+| Basketball Pickup | Angular diversity around ball | Bots forming lines or parallel paths |
+| Fighting Game Neutral | Target throw windup, not release | Bots reacting only after ball leaves |
+| Cellular Automata | Local state rules only | Bots running strategy trees |
 
 ### Core Bot Behaviors (Priority Order)
 
