@@ -48,7 +48,7 @@ local VS_ALYX = {
     [VOICESET_MAD]        = { Sound("vo/npc/Alyx/dammit01.wav"), Sound("vo/npc/Alyx/dammit02.wav"), Sound("vo/npc/Alyx/what_is_that.wav") },
     [VOICESET_TAUNT]      = { Sound("vo/npc/Alyx/watchout01.wav"), Sound("vo/npc/Alyx/watchout02.wav"), Sound("vo/npc/Alyx/al_excuseme.wav") },
     [VOICESET_TAKEBALL]   = { Sound("vo/npc/Alyx/lets_go_this_way.wav"), Sound("vo/npc/Alyx/ok01.wav") },
-    [VOICESET_THROW]      = { Sound("vo/npc/male01/headsup01.wav"), Sound("vo/npc/male01/headsup02.wav") },
+    [VOICESET_THROW]      = { Sound("vo/npc/Alyx/headsup01.wav"), Sound("vo/npc/Alyx/headsup02.wav") },
     [VOICESET_OVERHERE]   = { Sound("vo/npc/Alyx/overhere01.wav") }
 }
 
@@ -76,7 +76,7 @@ local VS_FEMALE01 = {
     [VOICESET_MAD]        = { Sound("vo/npc/female01/gethellout.wav"), Sound("vo/npc/female01/ohno.wav"), Sound("vo/npc/female01/run01.wav") },
     [VOICESET_TAUNT]      = { Sound("vo/npc/female01/excuseme01.wav"), Sound("vo/npc/female01/excuseme02.wav"), Sound("vo/npc/female01/gethellout.wav") },
     [VOICESET_TAKEBALL]   = { Sound("vo/npc/female01/ok01.wav"), Sound("vo/npc/female01/ok02.wav"), Sound("vo/npc/female01/letsgo01.wav") },
-    [VOICESET_THROW]      = { Sound("vo/npc/male01/headsup01.wav"), Sound("vo/npc/male01/headsup02.wav") },
+    [VOICESET_THROW]      = { Sound("vo/npc/female01/headsup01.wav"), Sound("vo/npc/female01/headsup02.wav") },
     [VOICESET_OVERHERE]   = { Sound("vo/npc/female01/overhere01.wav") }
 }
 
