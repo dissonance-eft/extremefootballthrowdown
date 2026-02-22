@@ -1500,6 +1500,34 @@ wall_slam:
   surface_normal_z_max: 0.65
   damage: 10
 
+# Raw Lua globals verified by GLuaTest (lua/tests/eft/constants_test.lua)
+# Any change here must be reflected in sh_globals.lua / sh_voice.lua / shared.lua
+code_constants:
+  # sh_globals.lua — speed globals
+  SPEED_CHARGE: 300        # Full charge sprint; tackle threshold
+  SPEED_RUN: 150           # Non-carrier run
+  SPEED_STRAFE: 160        # Strafe-only movement (maps to strafe_only above)
+  SPEED_ATTACK: 100        # Attack / throw windup movement cap
+  SPEED_THROW: 100         # Equals SPEED_ATTACK
+  # shared.lua — team identifiers
+  TEAM_RED: 1
+  TEAM_BLUE: 2
+  # sh_globals.lua — collision mode constants
+  COLLISION_NORMAL: 0
+  COLLISION_AVOID: 1
+  COLLISION_PASSTHROUGH: 2
+  # sh_voice.lua — voiceset slot constants (indices into character sound tables)
+  VOICESET_PAIN_LIGHT: 1
+  VOICESET_PAIN_MED: 2
+  VOICESET_PAIN_HEAVY: 3
+  VOICESET_DEATH: 4
+  VOICESET_HAPPY: 5
+  VOICESET_MAD: 6
+  VOICESET_TAUNT: 7
+  VOICESET_TAKEBALL: 8
+  VOICESET_THROW: 9
+  VOICESET_OVERHERE: 10
+
 combat_outcomes:
   charge_vs_neutral: "charge_wins"
   charge_vs_charge: "higher_speed_wins_or_mutual_knockback"

@@ -19,7 +19,7 @@ Desktop.ini
 *~
 .vscode/
 
-# Dev Tools & Testing
-tests/
+# Dev Tools & Testing (top-level only; lua/tests/ is tracked for GLuaTest)
+/tests/
 tools/
 manifest/

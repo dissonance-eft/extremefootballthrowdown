@@ -1,17 +1,60 @@
 /// MANIFEST LINKS:
 /// Principles: P-010 (Sport Identity - Bot)
 -- ============================================================================
--- BOT PATHFINDING (A* using GMod NavMesh)
+-- BOT PATHFINDING
 -- ============================================================================
--- Provides advanced navigation for bots on complex maps (Tunnel, Temple, etc)
--- If no NavMesh is present, bots fall back to direct line-of-sight movement.
+-- Priority order:
+--   1. D3bot custom node graph  (hand-placed nodes per map via in-game editor)
+--   2. GMod NavMesh A*          (if nav_generate was successfully run)
+--   3. Direct line-of-sight     (always-available fallback)
+--
+-- EFT maps are open-air BSPs with no info_player_start seeds, so nav_generate
+-- fails silently on most maps. D3bot sidesteps this with a custom node graph.
+-- Use '!bot editmesh' in chat to open the in-game node editor.
+-- Node graphs are saved to: data/d3bot/navmesh/map/<mapname>.txt
 -- ============================================================================
 
 BotPathfinder = {}
-BotPathfinder.Cache = {} -- Simple cache to avoid re-pathing every frame
-BotPathfinder.LastUpdate = {}
+BotPathfinder.Cache = {}      -- nextWaypoint Vector per bot
+BotPathfinder.LastUpdate = {} -- CurTime() of last path calculation per bot
 
 local pathUpdateInterval = 0.5 -- How often to recalculate paths (seconds)
+
+-- ============================================================================
+-- D3bot pathfinding (primary — uses hand-placed node graph)
+-- ============================================================================
+
+--- Query D3bot's custom node graph for the next waypoint toward targetPos.
+--- Returns a Vector or nil if D3bot is unavailable / has no graph for this map.
+local function D3botGetNextWaypoint(bot, targetPos)
+    if not D3bot or not D3bot.MapNavMesh then return nil end
+
+    local navMesh = D3bot.MapNavMesh
+    if not navMesh or not next(navMesh.NodeById) then return nil end -- Empty graph
+
+    local botPos = bot:GetPos()
+
+    local startNode = navMesh:GetNearestNodeOrNil(botPos)
+    local endNode   = navMesh:GetNearestNodeOrNil(targetPos)
+    if not startNode or not endNode then return nil end
+    if startNode == endNode then return nil end -- Same node, direct move
+
+    local path = D3bot.GetBestMeshPathOrNil(startNode, endNode)
+    if not path or #path < 2 then return nil end
+
+    -- path[1] = start node (where bot is), path[2] = next node to walk toward
+    local nextNode = path[2]
+    local waypoint = Vector(nextNode.Pos)
+
+    -- Slight randomization to prevent bot trains on shared paths
+    waypoint.x = waypoint.x + math.random(-15, 15)
+    waypoint.y = waypoint.y + math.random(-15, 15)
+
+    -- Jump detection: if next node is significantly higher, signal a jump
+    bot.PathJump = waypoint.z > botPos.z + 40
+
+    return waypoint
+end
 
 -- A* Node structure wrapper not needed, we use CNavArea directly plus a table for costs
 -- OpenSet: list of areas to visit
@@ -30,11 +73,31 @@ local function ReconstructPath(cameFrom, currentFunc, startArea)
 	return path
 end
 
--- Find a path from startPos to endPos using NavMesh
--- Returns: nextWaypoint (Vector) or nil if no path/direct
+-- ============================================================================
+-- Public API
+-- ============================================================================
+
+--- Find the next waypoint toward targetPos.
+--- Tries D3bot node graph first, then GMod NavMesh A*, then returns nil (direct LOS).
+--- Returns: Vector or nil
 function BotPathfinder.GetNextWaypoint(bot, targetPos)
+    -- ---- Priority 1: D3bot custom node graph ----
+    if BotPathfinder.LastUpdate[bot] == nil or
+       CurTime() - (BotPathfinder.LastUpdate[bot] or 0) >= pathUpdateInterval then
+
+        local d3waypoint = D3botGetNextWaypoint(bot, targetPos)
+        if d3waypoint then
+            BotPathfinder.Cache[bot]      = d3waypoint
+            BotPathfinder.LastUpdate[bot] = CurTime()
+            return d3waypoint
+        end
+    elseif BotPathfinder.Cache[bot] and D3bot and D3bot.MapNavMesh and next(D3bot.MapNavMesh.NodeById) then
+        return BotPathfinder.Cache[bot] -- Still within throttle window, return cached
+    end
+
+    -- ---- Priority 2: GMod NavMesh A* (fallback when no D3bot graph) ----
 	if not navmesh.IsLoaded() then return nil end
-	
+
 	local botPos = bot:GetPos()
 	
 	-- 1. Check if we need pathfinding (Direct LOS check)
