@@ -69,6 +69,7 @@ include("cl_hud.lua")
 include("cl_deathnotice.lua")
 include("cl_scoreboard.lua")
 include("cl_notify.lua")
+include("cl_rich_presence.lua")
 
 GM.LerpRateOn = 10
 GM.LerpRateOff = 8

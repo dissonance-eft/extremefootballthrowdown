@@ -48,6 +48,7 @@ AddCSLuaFile("obj_player.lua")
 AddCSLuaFile("obj_ball.lua")
 AddCSLuaFile("obj_gamemanager.lua")
 AddCSLuaFile("cl_mapvote.lua")
+AddCSLuaFile("cl_rich_presence.lua")
 
 include("sh_globals.lua")
 include("shared.lua")
@@ -63,6 +64,7 @@ include("server/sv_match_recorder.lua") -- Enable Match Recording
 include("lib/promise.lua")
 include("lib/class.lua")
 include("lib/event.lua")
+include("lib/d3bot/d3bot_init.lua") -- D3bot navigation engine (node graph + A* + editor)
 include("obj_bot.lua") -- Define Bot class BEFORE sv_bots.lua uses it!
 include("sv_bot_pathfinding.lua")
 include("sv_bots.lua") 
