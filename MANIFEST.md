@@ -1772,6 +1772,123 @@ The system must remain playable at low counts and chaotic at high counts without
 
 ---
 
+## APPENDIX L -- FUTURE FEATURES <!-- id: APP-L -->
+
+> **Policy:** Items in this section are desired but not yet started. They are documented here so design decisions in the present don't accidentally foreclose them. Nothing here is a commitment.
+
+---
+
+### L-001 — D3bot Navigation Integration <!-- id: APP-L-001 -->
+
+**Problem:** GMod's native `nav_generate` fails on EFT maps because they use custom spawn entities instead of `info_player_start`. The nav mesh generator seeds from `info_player_start`; with none present, it finds no walkable surface and aborts. On open-air BSP maps (no visleafs to bound walkable space), even `nav_mark_walkable` workarounds are fragile.
+
+**Desired Solution:** Integrate [D3bot](https://github.com/Dadido3/D3bot), which uses a hand-placed node graph instead of the generated nav mesh. This completely sidesteps the nav_generate problem. Nodes are placed in-editor per map; the pathfinder runs on the custom graph, not the BSP nav mesh.
+
+**Scope:**
+- Strip ZS-specific bot behavior from D3bot, keep only pathfinding engine
+- Replace `sv_bot_pathfinding.lua` A\* calls with D3bot graph lookups
+- Build node graphs for each `xft_`/`eft_` map (~30 nodes per map: spawn zones, goal mouths, center circle, flanks)
+- Node parameters for jump links where maps have elevation changes
+
+**Status:** Not started. Bot pathfinding currently falls back to direct line-of-sight movement on all maps.
+
+---
+
+### L-002 — Player Stats Persistence <!-- id: APP-L-002 -->
+
+**Problem:** All per-player statistics (goals scored, tackles landed, knockdowns dealt/received, win/loss record) are lost on map change. Match replays are recorded as JSON but are not queryable.
+
+**Desired Solution:** SQLite-backed persistence layer keyed by SteamID64. Stats accumulated across sessions, surfaced on scoreboard and in a leaderboard command.
+
+**Scope:**
+- Schema: `players(steamid, name, games, wins, goals, tackles, knockdowns_dealt, knockdowns_received, playtime)`
+- Write on: `GM:PlayerDisconnected`, `GameManager:OnRoundEnd`
+- Surface via: `!stats [player]` chat command, end-of-match summary panel
+- Optional: ELO rating for skill-based team balance (replaces round-robin)
+
+**Status:** Not started. Low priority — EFT is fun without it. Do not add until server population justifies the overhead.
+
+---
+
+### L-003 — Discord Webhook Match Results <!-- id: APP-L-003 -->
+
+**Problem:** Match outcomes are invisible outside the server. No way to share results, hype plays, or announce events to a community channel.
+
+**Desired Solution:** On match end, POST a Discord webhook with: map, final score, goal scorers, MVP (most goals+tackles), match duration. On overtime, post OT start announcement.
+
+**Scope:**
+- Pure HTTP, no dependencies — Discord webhooks are a single `HTTP({url=..., method="POST", body=..., headers={...}})` call
+- Triggered from `GameManager:OnMatchEnd()`
+- Webhook URL stored in a server-side config file (never committed)
+- Embed format: team scores, goal scorers as bullet list, map thumbnail if available
+
+**Status:** Not started. Trivial implementation (~50 lines). Requires a Discord server to send to.
+
+---
+
+### L-004 — GLuaTest CI Integration <!-- id: APP-L-004 -->
+
+**Problem:** Zero automated tests exist. Every refactor of `GameManager`, scoring, tiebreaker logic, voiceset dispatch, or knockdown timing is a regression gamble caught only by in-game play.
+
+**Desired Solution:** [GLuaTest](https://github.com/CFC-Servers/GLuaTest) — a GMod unit testing framework with GitHub Actions integration. Spins up a real GMod test server, runs all tests, reports failures in PRs.
+
+**Scope:**
+- `lua/tests/gamemanager_test.lua`: `HasReachedRoundLimit()`, `IsOvertime()`, tiebreaker conditions, score accumulation
+- `lua/tests/voice_test.lua`: `GetVoiceSet()` dispatch (model string → correct VS_* table)
+- `lua/tests/ball_test.lua`: pickup immunity timers, team immunity windows
+- CI: `.github/workflows/test.yml` calling the GLuaTest reusable workflow
+
+**Status:** Not started. Framework is low-overhead to adopt. Tests are pure value during the s&box port.
+
+---
+
+### L-005 — Replay Viewer <!-- id: APP-L-005 -->
+
+**Problem:** `sv_match_recorder.lua` writes semantic event JSON to `data/eft_replays/`. The files are unreadable without tooling — no in-game playback, no web viewer, no way to review key moments.
+
+**Desired Solution:** A web-based or in-game replay viewer that reads the JSON and renders a top-down 2D field with player/ball positions over time.
+
+**Scope:**
+- Option A (simple): A standalone HTML/JS viewer that reads the JSON file and renders positions on a canvas. No server dependency.
+- Option B (in-game): A spectator-mode replay system that reconstructs game state from the event log and animates it.
+- Option A is the realistic first step; Option B requires significant infrastructure.
+
+**Status:** Not started. Option A can be implemented independently of the GMod codebase.
+
+---
+
+### L-006 — ELO / Skill-Based Team Balance <!-- id: APP-L-006 -->
+
+**Problem:** Current team balance is round-robin with a "least frags" tiebreaker. A new player placed against a veteran produces lopsided matches regardless of team sizes.
+
+**Desired Solution:** ELO ratings (or Glicko-2 for reliability intervals) stored per-SteamID, used to balance teams by minimizing skill delta rather than just headcount.
+
+**Scope:**
+- Requires L-002 (persistence) as prerequisite
+- ELO update: `K × (result - expected)` — ~10 lines of Lua
+- Balance algorithm: enumerate all team assignments, pick the one minimizing `|sum(elo_red) - sum(elo_blue)|`
+- Display: optional `[ELO: 1243]` tag on scoreboard
+
+**Status:** Not started. Requires L-002 first. Do not add until persistent player data exists.
+
+---
+
+### L-007 — Ambient / Reactive Music System <!-- id: APP-L-007 -->
+
+**Problem:** EFT has no background music. Matches are sonically flat between voice callouts and sound effects.
+
+**Desired Solution:** State-reactive music layers: quiet ambient during preround, mid-energy loop during play, intensity swell during overtime. Implemented as GMod sound streams, not full audio middleware.
+
+**Scope:**
+- Client-side only (no bandwidth cost)
+- Music cues: `MATCH_START`, `ROUND_ACTIVE`, `OVERTIME`, `MATCH_END_WIN`, `MATCH_END_LOSS`
+- Volume ducks during voice callouts (already have a hook point in `sh_voice.lua`)
+- Custom EFT soundtrack or CC-licensed tracks; no HL2 music (licensing)
+
+**Status:** Not started. Requires sourcing or composing tracks.
+
+---
+
 ## CREDITS <!-- id: CREDITS -->
 
 **Original Conception & Code:**
