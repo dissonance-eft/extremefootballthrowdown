@@ -622,23 +622,37 @@ function Bot:ExecuteState()
 
     if self.state == Bot.STATE_CHASE_BALL then
         if IsValid(ball) then
-             targetPos = ball:GetPos()
-             
-             -- Apply simple repulsion
-             local myPos = self.ply:GetPos()
-             local count = 0
-             local repulsion = Vector(0,0,0)
-             for _, teammate in ipairs(team.GetPlayers(self.ply:Team())) do
-                 if IsValid(teammate) and teammate ~= self.ply and teammate:Alive() then
-                     local distSq = myPos:DistToSqr(teammate:GetPos())
-                     if distSq < 22500 then
-                         local pushDir = (myPos - teammate:GetPos()):GetNormalized()
-                         repulsion = repulsion + pushDir * 120
-                         count = count + 1
-                     end
-                 end
-             end
-             if count > 0 then targetPos = targetPos + repulsion end
+            local myPos = self.ply:GetPos()
+            local ballPos = ball:GetPos()
+            local ballVel = ball:GetVelocity()
+
+            -- Use intercept prediction when ball is rolling; go straight to it when stationary.
+            -- Matches manifest behavior #6 (Angle-cut Intercept) for loose ball.
+            if ballVel:Length2D() > 50 then
+                targetPos = GetInterceptPoint(myPos, ballPos, ballVel, GetBotSpeed(self.ply))
+            else
+                targetPos = ballPos
+            end
+
+            -- Repulsion fans out approach angles when bots cluster far from the ball,
+            -- but fades to zero within 150 HU so nobody overshoots the pickup trigger.
+            local distToBall = myPos:Distance(ballPos)
+            local repulsionScale = math.Clamp((distToBall - 150) / 400, 0, 1)
+            if repulsionScale > 0 then
+                local count = 0
+                local repulsion = Vector(0, 0, 0)
+                for _, teammate in ipairs(team.GetPlayers(self.ply:Team())) do
+                    if IsValid(teammate) and teammate ~= self.ply and teammate:Alive() then
+                        local distSq = myPos:DistToSqr(teammate:GetPos())
+                        if distSq < 22500 then
+                            local pushDir = (myPos - teammate:GetPos()):GetNormalized()
+                            repulsion = repulsion + pushDir * 120
+                            count = count + 1
+                        end
+                    end
+                end
+                if count > 0 then targetPos = targetPos + repulsion * repulsionScale end
+            end
         end
 
     elseif self.state == Bot.STATE_CARRIER then

@@ -1,6 +1,9 @@
 # s&box port stubs (separate repo eventually)
 sbox/
 
+# Map source files (no runtime purpose on server)
+content/VMFs/
+
 # Backup files
 eftbackup/
 *.7z
