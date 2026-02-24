@@ -7,7 +7,7 @@ cd /home/gmod/server
 exec ./srcds_run \
     -game garrysmod \
     +gamemode extremefootballthrowdown \
-    +map eft_bloodbowl_v5 \
+    +map eft_slamdunk_v6 \
     +maxplayers 24 \
     -norestart \
     -tickrate 66 \
