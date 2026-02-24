@@ -22,16 +22,35 @@ function STATE:Ended(pl, newstate)
 		local carrying = pl:GetCarry()
 		if carrying.Drop then
 			local throwforce = self:GetThrowForce(pl)
+			local throwAngles = pl:EyeAngles()
+			local throwOrigin = self:GetThrowPos(pl)
 
 			carrying:Drop(throwforce)
 			carrying:EmitSound("weapons/stinger_fire1.wav", 76, 100)
-			carrying:SetPos(self:GetThrowPos(pl))
+			carrying:SetPos(throwOrigin)
 
 			local phys = carrying:GetPhysicsObject()
 			if phys:IsValid() then
 				phys:Wake()
 				phys:SetVelocityInstantaneous(pl:GetAimVector() * throwforce)
 				phys:AddAngleVelocity(VectorRand() * math.Rand(-450, 450))
+			end
+
+			if RecordMatchEvent then
+				RecordMatchEvent("throw", pl, {
+					angle = {
+						p = math.Round(throwAngles.p, 1),
+						y = math.Round(throwAngles.y, 1)
+					},
+					force = math.Round(throwforce),
+					power = math.Round(self:GetThrowPower(pl), 2),
+					from = {
+						math.Round(throwOrigin.x),
+						math.Round(throwOrigin.y),
+						math.Round(throwOrigin.z)
+					},
+					is_bot = pl:IsBot()
+				})
 			end
 		end
 	end

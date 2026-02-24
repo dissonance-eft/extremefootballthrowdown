@@ -109,7 +109,8 @@ function meta:GetVoiceSet(set)
         voiceSet = VS_ALYX
     elseif string.find(model, "breen") then
         voiceSet = VS_BREEN
-    elseif string.find(model, "female") or string.find(model, "mossman") then
+    elseif string.find(model, "female") or string.find(model, "mossman")
+        or string.find(model, "chell") or string.find(model, "_fem") then
         voiceSet = VS_FEMALE01
     end
     

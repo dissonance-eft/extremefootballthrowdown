@@ -4,6 +4,9 @@ sbox/
 # Map source files (no runtime purpose on server)
 content/VMFs/
 
+# Server config with real passwords (use deploy/server.cfg.example as template)
+deploy/server.cfg
+
 # Backup files
 eftbackup/
 *.7z

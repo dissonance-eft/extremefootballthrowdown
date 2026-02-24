@@ -60,20 +60,8 @@ util.AddNetworkString("EFT_RTVNotify")
 -- COOLDOWN / RECENT MAPS
 -- ============================================================================
 
+-- Map cooldown list: in-memory only (resets on server restart, no disk writes)
 local recentMaps = {}
-
-local function LoadRecentMaps()
-    if file.Exists("eft_mapvote/recentmaps.txt", "DATA") then
-        recentMaps = util.JSONToTable(file.Read("eft_mapvote/recentmaps.txt", "DATA")) or {}
-    end
-end
-
-local function SaveRecentMaps()
-    if not file.Exists("eft_mapvote", "DATA") then
-        file.CreateDir("eft_mapvote")
-    end
-    file.Write("eft_mapvote/recentmaps.txt", util.TableToJSON(recentMaps))
-end
 
 local function RecordCurrentMap()
     local cooldownNum = MapVote.Config.MapsBeforeRevote or 3
@@ -93,11 +81,7 @@ local function RecordCurrentMap()
     while #recentMaps > cooldownNum do
         table.remove(recentMaps)
     end
-
-    SaveRecentMaps()
 end
-
-LoadRecentMaps()
 
 -- ============================================================================
 -- VIP / EXTRA VOTE POWER
@@ -209,7 +193,6 @@ function MapVote.Start(length, allowCurrent, limit, prefixes, callback)
     MapVote.CurrentMaps = voteMaps
     MapVote.Votes = {}
 
-    MsgN("[MapVote] Vote started with " .. #voteMaps .. " maps for " .. length .. " seconds")
 
     -- Timer to end the vote
     timer.Create("EFT_MapVote", length, 1, function()
@@ -249,7 +232,6 @@ function MapVote.Start(length, allowCurrent, limit, prefixes, callback)
         net.Broadcast()
 
         local winningMap = MapVote.CurrentMaps[winner]
-        MsgN("[MapVote] Winner: " .. tostring(winningMap))
 
         -- Change map after a short delay for the flash animation
         timer.Simple(4, function()
@@ -273,7 +255,6 @@ function MapVote.Cancel()
         net.Broadcast()
 
         timer.Destroy("EFT_MapVote")
-        MsgN("[MapVote] Vote cancelled.")
     end
 end
 

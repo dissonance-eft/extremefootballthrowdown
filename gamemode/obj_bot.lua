@@ -29,10 +29,11 @@
 ---@field stuckSince number CurTime() when stuck was first detected (0 = not stuck)
 ---@field stuckPunchAt number CurTime() when the bot should try punching to unstick
 ---@field throwCooldown number CurTime() before next throw is allowed
----@field throwState? string "winding"|"hailmary"|"release"|nil
+---@field throwState? string "winding"|"hailmary"|"goalshot"|"release"|"countdown"|nil
 ---@field throwStart? number CurTime() when throw wind-up started
 ---@field throwDuration? number Duration of throw wind-up
 ---@field throwTarget? Player Target teammate for a throw pass
+---@field throwReleaseTime? number CurTime() when countdown expires (set on "release"→"countdown" transition)
 ---@field wantJump boolean Flag: press jump this tick
 ---@field wantPunch boolean Flag: press attack this tick
 ---@field wantReload boolean Flag: press reload (look back) this tick
@@ -593,11 +594,13 @@ end
 
 --- Execute behavior for the current AI state. Sets movement targets and action flags.
 function Bot:ExecuteState()
-    -- Reset flags
+    -- Reset flags (pitch is preserved during throws so the countdown doesn't wipe it)
     self.wantJump = false
     self.wantPunch = false
     self.wantReload = false
-    self.targetPitch = 0
+    if not self.throwState then
+        self.targetPitch = 0
+    end
 
     local bot = self.ply
     local botPos = bot:GetPos()
@@ -868,9 +871,7 @@ function Bot:ExecuteState()
                     end
                 end
 
-                if curTime >= self.throwStart + self.throwDuration then
-                    self.throwState = "release"
-                end
+                -- Release check is in BuildCommand (runs every tick) for precise power timing.
             end
         end
 
@@ -928,8 +929,13 @@ function Bot:ExecuteState()
                 end
             end
 
-            -- Opportunistic Stomp REMOVED per user request (Stricter punch logic)
-            -- Bots will only punch if physically stuck or blocking (handled in CheckStuck/BodyWall)
+            -- === REACH PUNCH: Immediately punch a nearly-stationary carrier ===
+            -- The 0.75s stuck timer never fires against a stationary target (we decelerate
+            -- into them without being "stuck"). Short-circuit it: use TargetsContain so
+            -- the punch only fires when the hit is physically guaranteed (same trace STATE_PUNCH uses).
+            if carrier:GetVelocity():Length2D() < 80 and self.ply:TargetsContain(carrier) then
+                self.wantPunch = true
+            end
         else
             self.state = Bot.STATE_CHASE_BALL
         end
@@ -1170,6 +1176,9 @@ end
 
 --- Apply wall avoidance and The Curve (P-060) to the current target yaw.
 function Bot:ApplyMovement()
+    -- During any throw phase, aim must stay locked — wall/pit detection must not redirect it.
+    if self.throwState then return end
+
     -- Punch logic is handled by CheckStuck (0.75s blocked timer).
     -- No proactive punching here — bots only punch when genuinely stuck.
     
@@ -1309,14 +1318,32 @@ function Bot:BuildCommand(cmd)
     if self.wantReload then cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_RELOAD)) end
 
     -- 4. THROW INPUT
-    -- Lifecycle: "winding"/"hailmary" → hold IN_ATTACK2 (charges power)
-    --            "release" → release IN_ATTACK2 (fires throw), then clear state next tick
+    -- Lifecycle: "winding"/"hailmary"/"goalshot" → hold IN_ATTACK2 (charges power)
+    --            "release"   → release IN_ATTACK2 (throw.lua starts 0.45s countdown)
+    --            "countdown" → hold aim for STATE.Time (0.45s) so the ball flies correctly
     if self.throwState == "winding" or self.throwState == "hailmary" or self.throwState == "goalshot" then
-        -- Hold right-click to charge the throw
-        cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_ATTACK2))
-    elseif self.throwState == "release" then
-        -- Don't press IN_ATTACK2 this tick — the engine sees the release and fires the throw
-        self.throwState = nil
+        -- Release check runs here every tick (not in ExecuteState's 0.15s throttle) so
+        -- chargeTime = throwDuration exactly, matching what was calculated.
+        if self.throwStart and CurTime() >= self.throwStart + self.throwDuration then
+            self.throwState = "release"
+            -- fall through to the "release" branch below on this same tick
+        else
+            -- Still charging — hold right-click
+            cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_ATTACK2))
+        end
+    end
+    if self.throwState == "release" then
+        -- Release IN_ATTACK2 — throw fires after throw.lua STATE.Time (0.45s) animation.
+        -- Transition to "countdown" so ApplyMovement is skipped and targetYaw/targetPitch
+        -- are frozen until STATE:Ended actually fires the ball.
+        self.throwReleaseTime = CurTime() + 0.5  -- slightly > STATE.Time (0.45s) for safety
+        self.throwState = "countdown"
+    elseif self.throwState == "countdown" then
+        -- Hold aim until the throw animation completes, then resume normal AI
+        if CurTime() >= (self.throwReleaseTime or 0) then
+            self.throwState = nil
+        end
+        -- No buttons: IN_ATTACK2 was released on the prior tick
     end
 end
 
