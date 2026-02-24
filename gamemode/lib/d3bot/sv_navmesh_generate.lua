@@ -124,10 +124,11 @@ function D3bot.ConvertNavmesh(callback)
 
 		D3bot.MapNavMesh = mapNavMesh
 
+		D3bot.SaveMapNavMesh()
+
 		PrintMessage(HUD_PRINTTALK, "Complete!")
 		PrintMessage(HUD_PRINTTALK, " ")
-		PrintMessage(HUD_PRINTTALK, "This mesh does not autosave. Save this manually.")
-		PrintMessage(HUD_PRINTTALK, "Also, make sure that D3bot.ValveNavOverride in sv_config.lua is set to false.")
+		PrintMessage(HUD_PRINTTALK, "Mesh saved to data/" .. D3bot.MapNavMeshPath)
 
 		hook.Remove("ConverterCoroutineStep")
 

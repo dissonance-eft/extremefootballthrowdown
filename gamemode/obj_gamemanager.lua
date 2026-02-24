@@ -218,6 +218,14 @@ function GameManager:RoundStart()
 
     self:SetInRound(true)
 
+    if RecordMatchEvent then
+        RecordMatchEvent("round_start", nil, {
+            round = roundNum,
+            overtime = self:GetOvertime(),
+            scores = {red = team.GetScore(TEAM_RED), blue = team.GetScore(TEAM_BLUE)}
+        })
+    end
+
     -- Determine round duration based on game state
     local remainingTime
     if self:GetOvertime() then
@@ -273,6 +281,13 @@ function GameManager:RoundEnd()
 
     GAMEMODE:OnRoundEnd(self.RoundNumber)
     if GameEvents.RoundEnd then GameEvents.RoundEnd:Invoke(self.RoundNumber) end
+
+    if RecordMatchEvent then
+        RecordMatchEvent("round_end", nil, {
+            round = self.RoundNumber,
+            scores = {red = team.GetScore(TEAM_RED), blue = team.GetScore(TEAM_BLUE)}
+        })
+    end
 
     self:SetInRound(false)
     SetGlobalBool("InPostRound", true)

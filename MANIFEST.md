@@ -1298,6 +1298,29 @@ Temple Sacrifice (11), Space Jump (8), Baseball Dash (7) = many hazard spots.
 | `magnetball` | Ball attracts to nearby players | Disabled |
 | `scoreball` | Scoring modifier | Disabled |
 
+### Map Design Rules (Community-Validated)
+
+These rules were distilled from competitive play and map feedback. They define what separates a good EFT map from a bad one.
+
+**Anti-patterns (design failures):**
+
+| Problem | Why It's Bad | Known Offender |
+|---------|-------------|----------------|
+| Ball-spawn camping | Geometry lets the winning team camp the ball spawn, preventing resets from being meaningful | Various |
+| Instant-goal jump pads | Jump pads that launch from near spawn directly into the goal remove all counterplay | Space Jump (contested) |
+| Maps too large | Low pace, infrequent scoring, easy to avoid fights; kills server energy | — |
+| 0-0 overtime traps | Maps where neither team can score in OT due to defensive geometry or stalemate layouts | Space Jump (0-0 OT, server-killer) |
+
+**Correct anti-cheese mechanisms:**
+- **Small goals** (Temple Sacrifice): Reduces accidental scoring, rewards precision throws.
+- **Goal obstacles/rings** (Ring Boss concept): Physical obstruction forces intentional aim.
+- Geometry that naturally forces engagement, rather than rules that restrict play.
+
+**Good design signals:**
+- **Geometry that rewards passing** — maps where the layout naturally creates passing lanes and punishes solo carriers are considered "goated." Passing should feel like the correct play, not a consolation.
+- **Ball resets that matter** — Bloodbowl's ball reset mechanic was preferred over instant-respawn because the reset creates a neutral contest rather than handing possession back. High reset counts (Baseball Dash, Temple Sacrifice) are intentional.
+- **Pace above all** — a map that keeps possession moving and scores happening is better than a "deep" map that produces low-scoring grinds.
+
 ---
 
 ## APPENDIX G -- BOT AI DESIGN <!-- id: APP-G -->
@@ -1858,15 +1881,19 @@ The system must remain playable at low counts and chaotic at high counts without
 
 **Problem:** Zero automated tests exist. Every refactor of `GameManager`, scoring, tiebreaker logic, voiceset dispatch, or knockdown timing is a regression gamble caught only by in-game play.
 
-**Desired Solution:** [GLuaTest](https://github.com/CFC-Servers/GLuaTest) — a GMod unit testing framework with GitHub Actions integration. Spins up a real GMod test server, runs all tests, reports failures in PRs.
+**Solution:** [GLuaTest](https://github.com/CFC-Servers/GLuaTest) — a GMod unit testing framework with GitHub Actions integration. Spins up a real GMod test server, runs all tests, reports failures in PRs.
 
-**Scope:**
-- `lua/tests/gamemanager_test.lua`: `HasReachedRoundLimit()`, `IsOvertime()`, tiebreaker conditions, score accumulation
-- `lua/tests/voice_test.lua`: `GetVoiceSet()` dispatch (model string → correct VS_* table)
-- `lua/tests/ball_test.lua`: pickup immunity timers, team immunity windows
+**Implemented — 33 tests across 5 files:**
+- `lua/tests/eft/constants_test.lua`: Raw Lua globals (TEAM_RED/BLUE, STATE_* values, VOICESET_*)
+- `lua/tests/eft/util_test.lua`: `util.ToMinutesSeconds`, `ToMinutesSecondsMilliseconds`, `GetOppositeTeam`
+- `lua/tests/eft/gamemanager_test.lua`: `HasReachedRoundLimit`, `GetTimeLimit`, `GetGameTimeLeft`, `team.HasPity`
+- `lua/tests/eft/immunity_test.lua`: `SetKnockdownImmunity`, `GetKnockdownImmunity`, `ResetKnockdownImmunity`, charge immunity variants
+- `lua/tests/eft/lifecycle_test.lua`: `GameManager:Think()` decision tree (8 cases), state flag round-trips (`SetInRound`, `SetIsEndOfGame`, `BonusTime`, `ClearRoundResult`)
 - CI: `.github/workflows/test.yml` calling the GLuaTest reusable workflow
 
-**Status:** Not started. Framework is low-overhead to adopt. Tests are pure value during the s&box port.
+**What is NOT tested (integration territory requiring in-game verification):** `PreRoundStart`, `RoundStart`, `RoundEnd` (call into GAMEMODE hooks and Promise.Delay), Bot AI states, ball physics.
+
+**Status:** Implemented. CI runs on every push/PR.
 
 ---
 

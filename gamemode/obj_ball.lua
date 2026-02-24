@@ -61,6 +61,16 @@ function Ball:ReturnHome()
     effectdata:SetOrigin(ent:GetPos())
     util.Effect("ballreset", effectdata, true, true)
 
+    if RecordMatchEvent then
+        local lastCarrier = ent:GetLastCarrier()
+        local resetPos = ent:GetPos()
+        RecordMatchEvent("ball_reset", IsValid(lastCarrier) and lastCarrier or nil, {
+            last_team = ent:GetLastCarrierTeam(),
+            was_thrown = ent:GetWasThrown(),
+            from = {math.Round(resetPos.x), math.Round(resetPos.y), math.Round(resetPos.z)}
+        })
+    end
+
     GAMEMODE:BroadcastAction("Ball", "reset")
     if GameEvents.ReturnBall then GameEvents.ReturnBall:Invoke() end
     gamemode.Call("ReturnBall") -- Keep for legacy hooks
