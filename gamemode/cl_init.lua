@@ -1605,24 +1605,12 @@ function GM:DrawGameStateHUD()
 	local centerX = w / 2
 	local centerY = h / 2  -- True center for all displays
 
-	-- Goal text lives exactly as long as the PostRound window.
-	-- We latch WasInPostRound the first time InPostRound goes true after a goal,
-	-- then clear only once InPostRound goes false again (next pre-round starting).
-	-- This avoids the race where the GlobalBool hasn't networked yet on the very
-	-- frame TeamScored fires, which would immediately wipe RoundWinner.
-	if self.RoundWinner then
-		local inPostRound = GetGlobalBool("InPostRound", false)
-		if inPostRound then
-			self.WasInPostRound = true  -- server confirmed post-round is live
-		elseif self.WasInPostRound then
-			-- InPostRound just went false: pre-round started, clear goal text
-			self.RoundWinner = nil
-			self.RoundScorer = nil
-			self.RoundHomeRun = nil
-			self.WasInPostRound = nil
-		end
-	else
-		self.WasInPostRound = nil  -- no active goal, keep latch clean
+	-- Hard clear: InRound going true means a new round started — goal text must die.
+	-- This catches any case where InPostRound was missed or never propagated.
+	if self.RoundWinner and GetGlobalBool("InRound", false) then
+		self.RoundWinner = nil
+		self.RoundScorer = nil
+		self.RoundHomeRun = nil
 	end
 
 	if self.GameWinner then
@@ -1631,15 +1619,14 @@ function GM:DrawGameStateHUD()
 
 		draw.SimpleText(winnerName .. " WINS!", "EFTGoalTextLarge", centerX, centerY - 80, winnerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
-	elseif self.RoundWinner then
+	elseif self.RoundWinner and GetGlobalBool("InPostRound", false) then
+		-- Draw is gated on InPostRound — text cannot render during InRound.
 		local winnerColor = team.GetColor(self.RoundWinner)
-		-- Show scorer name instead of team name
 		local scorerName = "Unknown"
 		if IsValid(self.RoundScorer) then
 			scorerName = self.RoundScorer:Name()
 		end
-		
-		-- In overtime, show "TEAM WINS!" instead of "GOAL!!"
+
 		local text
 		if self:GetOvertime() then
 			text = team.GetName(self.RoundWinner) .. " WIN!"
