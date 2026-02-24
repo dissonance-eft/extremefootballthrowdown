@@ -32,5 +32,4 @@ manifest/
 MANIFEST.md
 docs/
 deploy/
-.github/
 lua/tests/
