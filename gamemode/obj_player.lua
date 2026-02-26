@@ -198,7 +198,10 @@ if SERVER then
             end
         end
 
-        ply:PlayVoiceSet(VOICESET_DEATH)
+        if not ply.m_NoDeathVoice then
+            ply:PlayVoiceSet(VOICESET_DEATH)
+        end
+        ply.m_NoDeathVoice = nil
 
         local carrying = ply:GetCarrying()
         if carrying:IsValid() and carrying.Drop then carrying:Drop(nil, attacker == ply) end
@@ -244,7 +247,12 @@ if SERVER then
             gamemode.Call("OnPlayerKnockedDownBy", ply, knocker)
 
             if RecordMatchEvent then
-                RecordMatchEvent("tackle_success", {knocker, ply})
+                local hadBall = IsValid(ply:GetCarrying())
+                RecordMatchEvent("tackle_success", {knocker, ply}, {
+                    had_ball = hadBall,
+                    victim_speed = math.Round(ply:GetVelocity():Length2D(), 1),
+                    knocker_speed = math.Round(knocker:GetVelocity():Length2D(), 1)
+                })
             end
         end
 

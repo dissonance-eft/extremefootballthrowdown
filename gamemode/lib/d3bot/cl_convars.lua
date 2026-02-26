@@ -5,3 +5,12 @@ CreateClientConVar("d3bot_navmeshing_reloadmodecycle", "1", true, true, "Defines
 D3bot.Convar_Navmeshing_SmartDraw = CreateClientConVar("d3bot_navmeshing_smartdraw", "1", true, true, "Automatically hides obscured nodes and links.")
 D3bot.Convar_Navmeshing_PreviewTool = CreateClientConVar("d3bot_navmeshing_previewtool", "1", true, true, "Preview of changes in the mesh using the selected mod.")
 D3bot.Convar_Navmeshing_DrawDistance = CreateClientConVar("d3bot_navmeshing_drawdistance", "0", true, true, "The maximum drawing distance. Use 0 to disable this option.")
+
+-- Console command to open the D3bot navmesh editor
+concommand.Add("d3bot_edit", function()
+	if D3bot and D3bot.OpenMeshingWindow then
+		D3bot.OpenMeshingWindow()
+	else
+		print("[D3bot] Editor not available - D3bot may not have initialized. Try reloading the map.")
+	end
+end, nil, "Open the D3bot navmesh editor")

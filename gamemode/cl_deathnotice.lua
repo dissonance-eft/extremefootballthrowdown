@@ -6,10 +6,56 @@
 
 include( 'vgui/vgui_gamenotice.lua' )
 
+local hud_deathnotice_time = CreateClientConVar( "hud_deathnotice_time", "6", true, false )
+local hud_deathnotice_limit = CreateClientConVar( "hud_deathnotice_limit", "5", true, false )
+
 local function CreateDeathNotify()
-	-- Death/possession notices disabled for EFT.
-	-- The top-right notice panel creates visual noise that doesn't fit the sport genre.
-	-- All AddDeathNotice/AddPlayerAction calls safely no-op because g_DeathNotify is nil.
+	if IsValid(g_DeathNotify) then g_DeathNotify:Remove() end
+
+	local container = vgui.Create("DPanel")
+	container:SetSize(300, 4)
+	container:SetPos(ScrW() - 310, 10)
+	container.Paint = function() end
+	container.Entries = {}
+
+	function container:AddItem(pnl)
+		pnl.CreatedAt = RealTime()
+		table.insert(self.Entries, pnl)
+		while #self.Entries > hud_deathnotice_limit:GetInt() do
+			local old = table.remove(self.Entries, 1)
+			if IsValid(old) then old:Remove() end
+		end
+		self:InvalidateLayout(true)
+	end
+
+	function container:PerformLayout()
+		local y = 0
+		for _, ent in ipairs(self.Entries) do
+			if IsValid(ent) then
+				ent:SetPos(self:GetWide() - ent:GetWide(), y)
+				y = y + ent:GetTall() + 2
+			end
+		end
+		self:SetTall(math.max(4, y))
+	end
+
+	function container:Think()
+		local now = RealTime()
+		local limit = hud_deathnotice_time:GetFloat()
+		local changed = false
+		for i = #self.Entries, 1, -1 do
+			local ent = self.Entries[i]
+			if not IsValid(ent) or (now - ent.CreatedAt) > limit then
+				if IsValid(ent) then ent:Remove() end
+				table.remove(self.Entries, i)
+				changed = true
+			end
+		end
+		if changed then self:InvalidateLayout(true) end
+		self:SetPos(ScrW() - 310, 10)
+	end
+
+	g_DeathNotify = container
 end
 
 hook.Add( "InitPostEntity", "CreateDeathNotify", CreateDeathNotify )

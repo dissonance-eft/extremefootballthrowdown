@@ -687,27 +687,53 @@ function Bot:ExecuteState()
                 local throwRange = Bot.THROW_RANGE_IDEAL
                 
                 if distToGoal < Bot.THROW_RANGE_MAX then
-                    -- We're within throw range — initiate aimed throw at goal
-                    local throwForce = 1100 -- Base throw force (STATE.ThrowForce in throw.lua)
-                    local fromPos = botPos + Vector(0, 0, 64) -- approximate GetShootPos()
-                    local calcPitch, flightTime = CalcThrowPitch(fromPos, actualGoalPos, throwForce)
-                    
-                    if calcPitch then
-                        self.throwState = "goalshot"
-                        self.throwStart = curTime
-                        self.throwDuration = 0.6 + math.random() * 0.4 -- Quick-ish throw
-                        self.throwTarget = nil -- Aiming at goal, not a player
-                        self.throwCooldown = curTime + 2.0
-                        
-                        -- Aim at the goal
-                        local toGoal2D = (actualGoalPos - botPos)
-                        toGoal2D.z = 0
-                        self.targetYaw = toGoal2D:Angle().y
-                        self.targetPitch = calcPitch
-                        
-                        -- Add imperfection (P-060)
-                        self.targetPitch = self.targetPitch + math.Rand(-3, 3)
-                        self.targetYaw = self.targetYaw + math.Rand(-4, 4)
+                    -- Probability-based trigger: chance increases as bot gets closer (P-060)
+                    -- At max range (~1800): ~0%. At ideal range (~800): ~42%. At close (~400): ~69%.
+                    local throwT = 1 - (distToGoal / Bot.THROW_RANGE_MAX)
+                    local throwChance = throwT ^ 1.5
+
+                    if curTime > (self.throwCheckCooldown or 0) then
+                        self.throwCheckCooldown = curTime + 0.5 -- re-roll every 0.5s max
+                        if math.random() < throwChance then
+                            -- Initiate aimed throw at goal
+                            local chargeTime = 0.6 + math.random() * 0.4 -- Quick-ish throw
+                            local throwPower = math.Clamp(chargeTime, 0, 1.0)
+                            local throwForce = 1100 * ((1 + throwPower) / 2)
+
+                            local fromPos = botPos + Vector(0, 0, 64) -- approximate GetShootPos()
+                            local calcPitch, flightTime = CalcThrowPitch(fromPos, actualGoalPos, throwForce)
+
+                            if calcPitch then
+                                self.throwState = "goalshot"
+                                self.throwStart = curTime
+                                self.throwDuration = chargeTime
+                                self.throwTarget = nil -- Aiming at goal, not a player
+                                self.throwCooldown = curTime + 2.0
+
+                                -- Aim at the goal
+                                local toGoal2D = (actualGoalPos - botPos)
+                                toGoal2D.z = 0
+                                self.targetYaw = toGoal2D:Angle().y
+                                self.targetPitch = calcPitch
+
+                                -- Add imperfection (P-060)
+                                if math.random() < 0.5 then
+                                    -- 50% chance for an accurate shot (close to target, minor variance)
+                                    self.targetPitch = self.targetPitch + math.Rand(-2.5, 2.5)
+                                    self.targetYaw = self.targetYaw + math.Rand(-3.5, 3.5)
+                                else
+                                    -- 50% chance for a near-miss (off enough to clip edges or sail just past)
+                                    self.targetPitch = self.targetPitch + math.Rand(-5, 5)
+                                    
+                                    local missOffset = math.Rand(5, 12)
+                                    if math.random() > 0.5 then
+                                        self.targetYaw = self.targetYaw + missOffset
+                                    else
+                                        self.targetYaw = self.targetYaw - missOffset
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
                 
@@ -753,7 +779,12 @@ function Bot:ExecuteState()
                     if bot:EntIndex() % 2 == 0 then dodgeDir = -dodgeDir end
                     targetPos = botPos + toGoalDir * 200 + dodgeDir * 180
                 elseif enemyDot < -0.5 then
+                    -- Enemy is chasing from behind: look back AND juke hard laterally.
+                    -- Alternate direction every ~1.2s, offset by entity index for variety.
                     self.wantReload = true
+                    local perpDir = Vector(-toGoalDir.y, toGoalDir.x, 0)
+                    local jukeSide = math.floor(curTime * 0.8 + bot:EntIndex() * 0.5) % 2 == 0 and 1 or -1
+                    targetPos = botPos + toGoalDir * 300 + perpDir * jukeSide * 320
                 else
                      self.wantReload = false
                 end
@@ -802,20 +833,28 @@ function Bot:ExecuteState()
             end
 
             -- === THROW PASS (to teammates) ===
+            -- Passing should only occur under high pressure, and realistically has a high failure rate (~75% failure)
+            -- This models the "1 second vulnerability" of the windup window.
             if not goalIsThrowOnly and not self.wantReload and self.throwState == nil and curTime > self.throwCooldown then
                 if blockersInPath >= 2 and distToGoal > 500 then
                     local throwTarget = FindThrowTarget(self.ply, actualGoalPos)
-                    if throwTarget and math.random() < 0.15 then
-                        self.throwState = "winding"
-                        self.throwStart = curTime
-                        self.throwDuration = 0.5 + math.random() * 0.7
-                        self.throwTarget = throwTarget
-                        self.throwCooldown = curTime + 3.0
+                    if throwTarget then
+                        -- 25% chance to actually attempt a pass when the criteria are met
+                        if math.random() < 0.25 then
+                            self.throwState = "winding"
+                            self.throwStart = curTime
+                            self.throwDuration = 0.5 + math.random() * 0.7
+                            self.throwTarget = throwTarget
+                            self.throwCooldown = curTime + 3.0
 
-                        local throwDir = (throwTarget:GetPos() - botPos)
-                        throwDir.z = 0
-                        if throwDir:LengthSqr() > 1 then
-                            self.targetYaw = throwDir:Angle().y
+                            local throwDir = (throwTarget:GetPos() - botPos)
+                            throwDir.z = 0
+                            if throwDir:LengthSqr() > 1 then
+                                self.targetYaw = throwDir:Angle().y
+                            end
+                        else
+                            -- 75% of the time, decide not to pass and put passing on a short cooldown
+                            self.throwCooldown = curTime + 1.5
                         end
                     end
                 end
@@ -860,8 +899,11 @@ function Bot:ExecuteState()
 
                         self.targetYaw = finalYaw + curveOffset
 
-                        -- Use accurate physics arc (High Lob) instead of heuristic
-                        local calcPitch, _ = CalcThrowPitch(botPos, leadPos, 1100, true)
+                        -- Use accurate physics arc (High Lob) using exact charge power
+                        local throwPower = math.Clamp(self.throwDuration, 0, 1.0)
+                        local throwForce = 1100 * ((1 + throwPower) / 2)
+                        local calcPitch, _ = CalcThrowPitch(botPos + Vector(0, 0, 64), leadPos, throwForce, true)
+                        
                         if calcPitch then
                             self.targetPitch = calcPitch
                         else
@@ -881,24 +923,41 @@ function Bot:ExecuteState()
             local rank, total = GetProximityRank(self, carrierPos)
             
             -- AGGRESSIVE DEFENSE (S-005, P-060)
-            -- If we are one of the closest 3 bots to the carrier, we BLITZ.
-            -- Everyone else tries to cut off lanes or cover the goal.
-            local shouldBlitz = (rank <= 3)
-
-            -- If the carrier is close to the goal, everyone panics and blitzes
-            if defenseGoalPos and carrierPos:Distance(defenseGoalPos) < 1000 then
-                shouldBlitz = true
+            local shouldBlitz = false
+            
+            -- "Red Zone" Defense Mode: When the carrier is close to the goal, bots "lock in".
+            -- All bots blitz fiercely and use much tighter interception logic to mimic humans panic- defending.
+            local inRedZone = false
+            if defenseGoalPos and carrierPos:Distance(defenseGoalPos) < 1200 then
+                inRedZone = true
+                shouldBlitz = true -- Everyone blitzes in the Red Zone
+            else
+                -- Outside Red Zone: use proximity and Personality to decide
+                -- Rushers always blitz. Defenders hang back unless they are the absolute closest.
+                if self.Personality == "Rusher" then
+                    shouldBlitz = true
+                elseif self.Personality == "Defender" then
+                    shouldBlitz = (rank == 1)
+                else
+                    shouldBlitz = (rank <= 3) -- Normal bots blitz if they are highly relevant
+                end
             end
 
             if shouldBlitz then
                 -- BLITZ: Run straight at them (with intercept) to force a move or tackle
-                -- "Natural Feel": Don't predict *too* perfectly, or it feels unfairly aimbot-y.
-                -- Just run at their current position + slight velocity lead.
                 local carrierVel = carrier:GetVelocity()
-                local intercept = GetInterceptPoint(botPos, carrierPos, carrierVel, GetBotSpeed(bot))
                 
-                -- Over-commit imperfection: aim slightly *through* them to ensure impact
-                targetPos = intercept + (intercept - botPos):GetNormalized() * 50
+                if inRedZone then
+                    -- Red Zone Intercept: Hyper-accurate. Predict where they are going flawlessly.
+                    -- Scale accuracy randomly by tackleSkill (0.95 to 1.05) to still preserve human error
+                    local skillMod = self.tackleSkill or 1.0
+                    local intercept = GetInterceptPoint(botPos, carrierPos, carrierVel, GetBotSpeed(bot) * skillMod)
+                    targetPos = intercept + (intercept - botPos):GetNormalized() * 50
+                else
+                    -- Standard Intercept: Add a bit of looseness to the chase
+                    local intercept = GetInterceptPoint(botPos, carrierPos, carrierVel, GetBotSpeed(bot))
+                    targetPos = intercept + (intercept - botPos):GetNormalized() * 50
+                end
             else
                 -- SUPPORT / CONTAIN: Cut off the path to the goal
                 if defenseGoalPos then
@@ -906,15 +965,17 @@ function Bot:ExecuteState()
                     local toGoal = (defenseGoalPos - carrierPos):GetNormalized()
                     local dist = carrierPos:Distance(defenseGoalPos)
                     
-                    -- "Active Containment": Don't sit back. Close the gap, but stay in the lane.
-                    local containDist = math.Clamp(dist * 0.3, 150, 400) -- Tighter containment
+                    -- Drop back distance depends on personality
+                    local dropMod = (self.Personality == "Defender") and 0.5 or 0.3
+                    local containDist = math.Clamp(dist * dropMod, 150, 400)
+                    
                     targetPos = carrierPos + toGoal * containDist
                     
                     -- Spread out slightly so we don't bunch up with other defenders
                     if (bot:EntIndex() + math.floor(CurTime())) % 2 == 0 then
-                        targetPos = targetPos + toGoal:Cross(Vector(0,0,1)) * 100
+                        targetPos = targetPos + toGoal:Cross(Vector(0,0,1)) * 150
                     else
-                        targetPos = targetPos - toGoal:Cross(Vector(0,0,1)) * 100
+                        targetPos = targetPos - toGoal:Cross(Vector(0,0,1)) * 150
                     end
                 else
                     targetPos = carrierPos -- No goal? Just chase.
@@ -922,7 +983,7 @@ function Bot:ExecuteState()
             end
             
             -- Jump pad shortcut: if we are far, try to fly in
-            if botPos:Distance(targetPos) > 600 and bot:OnGround() then
+            if botPos:Distance(targetPos) > 600 and bot:OnGround() and not inRedZone then
                 local padPos = FindBestJumpPad(botPos, targetPos, 350)
                 if padPos and botPos:Distance(padPos) < 500 then
                     targetPos = padPos
@@ -1313,7 +1374,13 @@ function Bot:BuildCommand(cmd)
     end
 
     -- 3. ACTIONS
-    if self.wantJump then cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_JUMP)) end
+    if self.wantJump then 
+        cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_JUMP)) 
+        self.crouchUntil = CurTime() + 0.5
+    end
+    if (self.crouchUntil or 0) > CurTime() and not self.ply:OnGround() then
+        cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_DUCK))
+    end
     if self.wantPunch then cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_ATTACK)) end
     if self.wantReload then cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_RELOAD)) end
 

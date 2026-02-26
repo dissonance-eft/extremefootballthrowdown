@@ -52,15 +52,7 @@ function Ball:ReturnHome()
         phys:SetVelocityInstantaneous(Vector(0, 0, 0))
     end
 
-    ent.LastCarrierTeam = 0
-    ent:SetLastCarrierTeam(0)
-    ent:SetWasThrown(false)
-    GAMEMODE:LocalSound("eft/ballreset.ogg")
-
-    local effectdata = EffectData()
-    effectdata:SetOrigin(ent:GetPos())
-    util.Effect("ballreset", effectdata, true, true)
-
+    -- Capture before resetting: SetLastCarrierTeam(0) and SetWasThrown(false) happen below
     if RecordMatchEvent then
         local lastCarrier = ent:GetLastCarrier()
         local resetPos = ent:GetPos()
@@ -70,6 +62,15 @@ function Ball:ReturnHome()
             from = {math.Round(resetPos.x), math.Round(resetPos.y), math.Round(resetPos.z)}
         })
     end
+
+    ent.LastCarrierTeam = 0
+    ent:SetLastCarrierTeam(0)
+    ent:SetWasThrown(false)
+    GAMEMODE:LocalSound("eft/ballreset.ogg")
+
+    local effectdata = EffectData()
+    effectdata:SetOrigin(ent:GetPos())
+    util.Effect("ballreset", effectdata, true, true)
 
     GAMEMODE:BroadcastAction("Ball", "reset")
     if GameEvents.ReturnBall then GameEvents.ReturnBall:Invoke() end

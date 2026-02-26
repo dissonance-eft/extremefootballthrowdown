@@ -427,16 +427,42 @@ function PANEL:SetMaps(maps)
             end
             -- If thumbImage exists, the DImage child draws itself automatically
 
-            -- Map name text below thumbnail
-            local textY = cardPad + thumbH + 4
-            -- Pretty-print the map name: strip prefix and version, capitalize
-            local displayName = s.mapName:gsub("^eft_", ""):gsub("^xft_", "")
-            displayName = displayName:gsub("_v%d+$", ""):gsub("_b%d+$", ""):gsub("_r%d+$", ""):gsub("%d+r%d+$", "")
-            displayName = displayName:gsub("_", " ")
-            -- Title case
-            displayName = displayName:gsub("(%a)([%w_']*)", function(first, rest)
-                return first:upper() .. rest:lower()
-            end)
+            local manifestNames = {
+                ["eft_baseballdash_v3"] = "Baseball Dash",
+                ["eft_big_metal03r1"] = "Big Metal",
+                ["eft_bloodbowl_v5"] = "Bloodbowl",
+                ["eft_castle_warfare"] = "Castle Warfare",
+                ["eft_chamber_v3"] = "Chamber",
+                ["eft_cosmic_arena_v2"] = "Cosmic Arena",
+                ["eft_countdown_v4"] = "Countdown",
+                ["eft_gauntlet_v1"] = "Gauntlet",
+                ["eft_handegg_r2"] = "Handegg",
+                ["eft_lake_parima_v2"] = "Lake Parima",
+                ["eft_legoland_v2"] = "Legoland",
+                ["eft_minecraft_v4"] = "Minecraft",
+                ["eft_miniputt_v1r"] = "Mini Putt",
+                ["eft_oasis_v4"] = "Oasis",
+                ["eft_sky_metal_v2"] = "Sky Metal",
+                ["eft_skyline_v2"] = "Skyline",
+                ["eft_skystep_v4"] = "Skystep",
+                ["eft_slamdunk_v6"] = "Slam Dunk",
+                ["eft_soccer_b4"] = "Soccer",
+                ["eft_spacejump_v6"] = "Space Jump",
+                ["eft_temple_sacrifice_v3"] = "Temple Sacrifice",
+                ["eft_tunnel_v2"] = "Tunnel",
+                ["eft_turbines_v2"] = "Turbines"
+            }
+
+            local displayName = manifestNames[s.mapName]
+            if not displayName then
+                -- Fallback to regex for unknown maps
+                displayName = s.mapName:gsub("^eft_", ""):gsub("^xft_", "")
+                displayName = displayName:gsub("_v%d+$", ""):gsub("_b%d+$", ""):gsub("_r%d+$", ""):gsub("%d+r%d+$", "")
+                displayName = displayName:gsub("_", " ")
+                displayName = displayName:gsub("(%a)([%w_']*)", function(first, rest)
+                    return first:upper() .. rest:lower()
+                end)
+            end
 
             draw.SimpleText(
                 displayName,
@@ -585,3 +611,16 @@ function PANEL:Think()
 end
 
 derma.DefineControl("EFT_MapVoteScreen", "EFT Map Vote Screen", PANEL, "DPanel")
+
+-- Yield keyboard focus to chat when the player opens it, restore when done.
+-- Without this, MakePopup() on the vote panel swallows all keystrokes.
+hook.Add("StartChat", "EFT_MapVoteChatYield", function()
+    if IsValid(MapVote.Panel) and MapVote.Panel:IsVisible() then
+        MapVote.Panel:SetKeyboardInputEnabled(false)
+    end
+end)
+hook.Add("FinishChat", "EFT_MapVoteChatRestore", function()
+    if IsValid(MapVote.Panel) and MapVote.Panel:IsVisible() then
+        MapVote.Panel:SetKeyboardInputEnabled(true)
+    end
+end)

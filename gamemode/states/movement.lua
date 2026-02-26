@@ -130,6 +130,12 @@ function STATE:Think(pl)
 					return]]
 				    -- pl:PrintMessage(HUD_PRINTTALK, "HEAD ON! - My speed: "..myspeedchat.." Their speed: "..otherspeedchat)
 				    -- hitent:PrintMessage(HUD_PRINTTALK, "HEAD ON! - My speed: "..otherspeedchat.." Their speed: "..myspeedchat)
+				    if RecordMatchEvent then
+				        RecordMatchEvent("head_on", {pl, hitent}, {
+				            my_speed = math.Round(myspeed, 1),
+				            other_speed = math.Round(otherspeed, 1)
+				        })
+				    end
 				end
 				
 				-- ADJUSTED CHECK: Bots use skill variance to resolve ties

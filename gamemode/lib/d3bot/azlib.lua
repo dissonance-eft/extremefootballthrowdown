@@ -207,8 +207,12 @@ return function(globalK, otherLibFilesRelPathEach)
 		lib.ExecuteLibFile(relInfo)
 	end
 	
-	if _G[globalK] then error("The specified global variable has already been assigned to.", 2) end
-	_G[globalK] = lib
+	if _G[globalK] then
+		-- Already initialized (map change / lua_openscript reload) — reuse existing table
+		lib = _G[globalK]
+	else
+		_G[globalK] = lib
+	end
 	lib.GlobalK = globalK
 	lib.IsInitialized = true
 end

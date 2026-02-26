@@ -18,11 +18,14 @@ function GM:DoPostProcessing()
 
 	local target = 1.6 - math.Clamp(game.GetTimeScale(), 0, 1) * 0.6
 
+	local lp = LocalPlayer()
 	if CurTime() < GetGlobalFloat("RoundStartTime", 0) --[[or self:IsWarmUp()]] then
 		target = target * 0.05
+	elseif IsValid(lp) and not lp:Alive() and lp:Team() ~= TEAM_SPECTATOR then
+		target = 0 -- Fully greyscale when dead
 	end
 
-	ColorModTime["$pp_colour_colour"] = math.Approach(ColorModTime["$pp_colour_colour"], target, RealFrameTime() * 2)
+	ColorModTime["$pp_colour_colour"] = math.Approach(ColorModTime["$pp_colour_colour"], target, RealFrameTime() * 4)
 
 	if ColorModTime["$pp_colour_colour"] ~= 1 then
 		DrawColorModify(ColorModTime)

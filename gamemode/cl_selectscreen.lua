@@ -201,6 +201,7 @@ function GM:ShowTeam()
         icon:SetSize(iconSize, iconSize)
         icon:SetPos(startX + (i-1) * (iconSize + spacing), modelY)
         icon:SetToolTip(mdl)
+        icon._isModelIcon = true -- Tag for targeted highlight clearing
         
         -- Highlight selected model
         if string.lower(mdl) == string.lower(currentModel) then
@@ -214,9 +215,9 @@ function GM:ShowTeam()
             RunConsoleCommand("cl_playermodel", mdl)
             surface.PlaySound("UI/buttonclick.wav")
             
-            -- Refresh highlights by iterating frame children (simple check)
+            -- Only clear highlights from model icons (tagged), not team buttons
             for _, child in pairs(frame:GetChildren()) do
-                if child.GetModel and child.PaintOver then -- Is likely our icon
+                if child._isModelIcon then
                      child.PaintOver = nil
                 end
             end

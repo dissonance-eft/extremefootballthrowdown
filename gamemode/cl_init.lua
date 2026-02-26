@@ -189,10 +189,10 @@ function GM:_CreateMove(cmd)
 		return
 	end
 
-	-- Prevent ducking unless on the ground or swimming.
-	--[[if bit_band(cmd:GetButtons(), IN_DUCK) ~= 0 and MySelf:GetMoveType() == MOVETYPE_WALK and not MySelf:OnGround() and not MySelf:IsSwimming() and MySelf:Alive() then
-		cmd:SetButtons(cmd:GetButtons() - IN_DUCK)
-	end]]
+	-- Prevent ducking while airborne (crouch-jump bonus baked into JumpPower instead)
+	if bit_band(cmd:GetButtons(), IN_DUCK) ~= 0 and MySelf:GetMoveType() == MOVETYPE_WALK and not MySelf:OnGround() and not MySelf:IsSwimming() and MySelf:Alive() then
+		cmd:SetButtons(bit_band(cmd:GetButtons(), bit.bnot(IN_DUCK)))
+	end
 
 	local ang = cmd:GetViewAngles()
 
@@ -1315,13 +1315,45 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 			origin = tr.Hit and tr.HitPos + (tr.HitPos - origin):GetNormalized() * 4 or tr.HitPos
 		end
 
-		-- FOV scaling
+		-- Camera tilt & FOV effects
 		local vel = pl:GetVelocity()
 		local speed = vel:Length()
-		fov = fov + fov * math.Clamp(math.abs(angles:Forward():Dot(vel:GetNormalized())) * ((speed - 100) / 250), 0, 1) * 0.15
-
-		-- View rolling
-		targetroll = targetroll + vel:GetNormalized():Dot(angles:Right()) * math_min(30, speed / 100)
+		
+		-- Mild tilt at ALL speeds (subtle body english during normal movement)
+		if speed > 80 then
+			local mildTilt = vel:GetNormalized():Dot(angles:Right()) * math.Clamp(speed / 350, 0, 1) * 5
+			targetroll = targetroll + mildTilt
+		end
+		
+		-- CHARGING: Aggressive missile-like tunnel vision
+		if speed >= 290 then
+			local intensity = math.Clamp((speed - 290) / 60, 0, 1)
+			local fwdDot = math.Clamp(math.abs(angles:Forward():Dot(vel:GetNormalized())), 0, 1)
+			
+			-- FOV widen to simulate speed (up to 20% wider)
+			fov = fov + fov * fwdDot * 0.20 * intensity
+			
+			-- Charge tilt on top of the mild tilt
+			targetroll = targetroll + vel:GetNormalized():Dot(angles:Right()) * 20 * intensity
+		elseif speed < 150 then
+			-- Snappy recovery if tackled/stopped suddenly to feel the jarring crash of losing momentum
+			if (pl.LastFrameSpeed or 0) >= 290 then
+				-- We just slammed into a wall or got tackled out of a charge!
+				util.ScreenShake(origin, 14, 15, 0.5, 128)
+				
+				-- Bump the camera tilt out of place realistically, so it smoothly swings back
+				roll = roll + math.Rand(-10, 10)
+			else
+				-- Quickly and smoothly recover back to normal zero tilt
+				roll = Lerp(10 * FrameTime(), roll, 0)
+				
+				if lerpfov and math.abs(lerpfov - fov) > 0.5 then
+					lerpfov = Lerp(20 * FrameTime(), lerpfov, fov) -- fast but smooth FOV zoom-out
+				end
+			end
+		end
+		
+		pl.LastFrameSpeed = speed
 	end
 
 	roll = math.Approach(roll, targetroll, math_max(0.25, math.sqrt(math.abs(roll))) * 30 * FrameTime())
@@ -1607,7 +1639,8 @@ function GM:DrawGameStateHUD()
 
 	-- Hard clear: InRound going true means a new round started — goal text must die.
 	-- This catches any case where InPostRound was missed or never propagated.
-	if self.RoundWinner and GetGlobalBool("InRound", false) then
+	-- Uses a 2s delay ensure we don't clear immediately from GetGlobalBool syncing late.
+	if self.RoundWinner and GetGlobalBool("InRound", false) and RealTime() > (self.RoundEndCameraTime or 0) + 2.0 then
 		self.RoundWinner = nil
 		self.RoundScorer = nil
 		self.RoundHomeRun = nil
@@ -1619,8 +1652,8 @@ function GM:DrawGameStateHUD()
 
 		draw.SimpleText(winnerName .. " WINS!", "EFTGoalTextLarge", centerX, centerY - 80, winnerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
-	elseif self.RoundWinner and GetGlobalBool("InPostRound", false) then
-		-- Draw is gated on InPostRound — text cannot render during InRound.
+	elseif self.RoundWinner then
+		-- Draw whenever RoundWinner is set locally. Hard clear above ensures it dies when round starts.
 		local winnerColor = team.GetColor(self.RoundWinner)
 		local scorerName = "Unknown"
 		if IsValid(self.RoundScorer) then
@@ -1663,24 +1696,7 @@ function GM:DrawGameStateHUD()
 	
 	-- Death respawn countdown — only during an active round.
 	-- Pre-round and post-round deaths are handled by UTIL_SpawnAllPlayers at round boundaries.
-	local lp = LocalPlayer()
-	if IsValid(lp) and not lp:Alive() and lp:Team() ~= TEAM_SPECTATOR
-	and GetGlobalBool("InRound", false) and not GetGlobalBool("InPostRound", false) then
-		local respawnTime = lp:GetNWFloat("RespawnTime", 0)
-		local timeLeft = respawnTime - CurTime()
-
-		if timeLeft > 0 then
-			local countdownNum = math.ceil(timeLeft)
-			local pulse = math.abs(math.sin(CurTime() * 6)) * 0.3
-			local alpha = 200 + pulse * 55
-			local deathColor = Color(255, 60, 60, alpha)
-
-			-- Large countdown number
-			draw.SimpleText(tostring(countdownNum), "EFTCountDownLarge", centerX, centerY, deathColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-			-- "RESPAWNING" label above
-			draw.SimpleText("RESPAWNING", "EFTStatusText", centerX, centerY - 200, Color(255, 255, 255, alpha * 0.7), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-		end
-	end
+	-- Removed by request: relying entirely on greyscale and DSP for death feedback.
 end
 
 function GM:OnHUDPaint()
@@ -1701,7 +1717,7 @@ function GM:OnHUDPaint()
 		if not lp:Alive() and lp:Team() ~= TEAM_SPECTATOR then
 			if not self.DeathDSPActive then
 				self.DeathDSPActive = true
-				lp:SetDSP(14) -- Underwater/Muffled
+				lp:SetDSP(31) -- Heavy distortion/muffled (DSP_DIZZY)
 			end
 		else
 			if self.DeathDSPActive then
@@ -1975,18 +1991,19 @@ end
 function GM:TeamScored(teamid, hitter, points, homerun)
 	self.CurrentTransition = math.random(#TRANSITIONS)
 
+	-- Set display state BEFORE the MySelf validity check so spectators and
+	-- late-joiners always receive the goal text even if MySelf isn't ready yet.
+	self.RoundWinner = teamid
+	self.RoundScorer = hitter
+	self.RoundEndScroll = 0
+	self.RoundEndCameraTime = RealTime()
+	self.RoundHomeRun = homerun
+
 	if not MySelf:IsValid() then return end
 
 	if teamid == MySelf:Team() or not team.Joinable(MySelf:Team()) then
 	else
 	end
-
-	self.RoundWinner = teamid
-	self.RoundScorer = hitter -- Store the scorer for display
-	self.RoundEndScroll = 0
-	self.RoundEndCameraTime = RealTime()
-	self.RoundHomeRun = homerun
-	-- Goal text cleared by InPostRound going false (server-driven), not a timer.
 end
 net.Receive("eft_teamscored", function(length)
 	local teamid = net.ReadUInt(8)

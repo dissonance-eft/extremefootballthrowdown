@@ -103,6 +103,10 @@ function GM:OnEndOfGame(bGamemodeVote)
 	GlobalNetwork:Start("eft_endofgame")
 		GlobalNetwork:WriteUInt(team.GetScore(TEAM_RED) > team.GetScore(TEAM_BLUE) and TEAM_RED or team.GetScore(TEAM_BLUE) > team.GetScore(TEAM_RED) and TEAM_BLUE or 0, 8)
 	GlobalNetwork:Broadcast()
+
+	if SERVER and MatchRecorder then
+		MatchRecorder:EndMatch()
+	end
 end
 
 -- GM:PreRoundStart moved to GameManager delegation in round_controller.lua
@@ -113,22 +117,7 @@ function GM:SetOvertime(ot)
 end
 GM.SetOverTime = GM.SetOvertime
 
--- Debug command to force overtime for testing
-concommand.Add("eft_force_overtime", function(ply, cmd, args)
-	-- Only allow in singleplayer or from server console, or if player is superadmin
-	if IsValid(ply) and not ply:IsSuperAdmin() then
-		ply:ChatPrint("You must be a superadmin to use this command.")
-		return
-	end
-	
-	-- Directly trigger overtime
-	GAMEMODE:SetOvertime(true)
-	
-	if IsValid(ply) then
-		ply:ChatPrint("[DEBUG] Overtime triggered!")
-	end
-	print("[DEBUG] eft_force_overtime: Overtime triggered")
-end, nil, "Debug: Force overtime state immediately")
+
 
 function GM:ReturnBall()
 	local ball = self:GetBall()
@@ -617,6 +606,10 @@ function GM:OnPlayerChangedTeam(pl, oldteam, newteam)
 
     pl:CollisionRulesChanged() -- Restored from deleted duplicate
 
+	if SERVER and RecordMatchEvent then
+		RecordMatchEvent("team_change", pl, { from = oldteam, to = newteam })
+	end
+
 	if team.Joinable(newteam) then
 		local uid = pl:UniqueID()
 
@@ -831,7 +824,11 @@ concommand.Add( "seensplash", SeenSplash )
 function GM:PlayerJoinTeam( ply, teamid )
 	local iOldTeam = ply:Team()
 	if ( ply:Alive() ) then
-		if ( iOldTeam == TEAM_SPECTATOR || (iOldTeam == TEAM_UNASSIGNED && GAMEMODE.TeamBased) || ply:IsBot() ) then
+		if ( teamid == TEAM_SPECTATOR ) then
+			-- Suppress death voice when administratively moved to spectator
+			ply.m_NoDeathVoice = true
+			ply:KillSilent()
+		elseif ( iOldTeam == TEAM_SPECTATOR || (iOldTeam == TEAM_UNASSIGNED && GAMEMODE.TeamBased) || ply:IsBot() ) then
 			ply:KillSilent()
 		else
 			ply:Kill()

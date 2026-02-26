@@ -197,29 +197,25 @@ hook.Add("OnRoundResult", "EFTBotCelebrationResult", function(winner) TriggerBot
 -- CONSOLE COMMANDS
 -- ============================================================================
 
-concommand.Add("eft_bot_add", function(ply, cmd, args)
+concommand.Add("eft_bots", function(ply, cmd, args)
     if IsValid(ply) and not ply:IsAdmin() then return end
-    local teamid = tonumber(args[1]) or TEAM_RED
-    CreateBot(teamid)
-    print("[EFT Bots] Added bot to " .. team.GetName(teamid))
-end)
-
-concommand.Add("eft_bot_remove", function(ply, cmd, args)
-    if IsValid(ply) and not ply:IsAdmin() then return end
-    for _, bot in ipairs(player.GetBots()) do
-        RemoveBot(bot)
-        print("[EFT Bots] Removed " .. bot:Nick())
+    local val = tonumber(args[1])
+    if val == nil then
+        print("[EFT Bots] Usage: eft_bots 0 (disable) | eft_bots 1 (enable, fill to 5v5)")
         return
     end
-    print("[EFT Bots] No bots to remove")
-end)
-
-concommand.Add("eft_bot_kick_all", function(ply, cmd, args)
-    if IsValid(ply) and not ply:IsAdmin() then return end
-    for _, bot in ipairs(player.GetBots()) do
-        RemoveBot(bot)
+    
+    if val == 0 then
+        GetConVar("eft_bots_enabled"):SetBool(false)
+        for _, bot in ipairs(player.GetBots()) do
+            bot:Kick("Bots disabled")
+        end
+        print("[EFT Bots] Disabled — all bots removed")
+    else
+        GetConVar("eft_bots_enabled"):SetBool(true)
+        print("[EFT Bots] Enabled — filling to 5v5")
+        timer.Simple(0.5, function() for i = 1, 10 do BalanceTeams() end end)
     end
-    print("[EFT Bots] Removed all bots")
-end)
+end, nil, "Toggle bots: 0 = off, 1 = on (5v5)")
 
 print("[EFT] Bot Entry Point Loaded")
