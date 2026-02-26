@@ -11,20 +11,16 @@ function GM:SetInRound( b ) GAMEMANAGER:SetInRound(b) end
 function GM:InRound() return GetGlobalBool( "InRound", false ) end
 
 function GM:OnRoundStart( num )
-
+	-- Overridden in init.lua (clears pre-round states, unfreezes players)
 	UTIL_UnFreezeAllPlayers()
-
 end
 
 function GM:OnRoundEnd( num )
 end
 
 function GM:OnRoundResult( result, resulttext )
-
-	// The fact that result might not be a team 
-	// shouldn't matter when calling this..
-	team.AddScore( result, 1 )
-
+	-- Score is added in GameManager:OnTeamScored, NOT here.
+	-- Do NOT call team.AddScore here or it will double-count goals.
 end
 
 function GM:OnRoundWinner( ply, resulttext )

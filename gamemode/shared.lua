@@ -632,14 +632,9 @@ end
 function util.IsVisible(posa, posb)
 	if posa == posb then return true end
 
-	local trace = {start = posa, endpos = posb, mask = MASK_SOLID_BRUSHONLY}
+	local tr = util.TraceLine({start = posa, endpos = posb, mask = MASK_SOLID_BRUSHONLY})
 
-	if not trace.Hit then return true end
-
-	trace.start = posb
-	trace.endpos = posa
-
-	return not trace.Hit
+	return not tr.Hit
 end
 
 function util.ToMinutesSecondsMilliseconds(seconds)

@@ -140,6 +140,45 @@ end
 function ENT:PhysicsUpdate(phys)
 	phys:Wake()
 	self:CallStateFunction("PhysicsUpdate", phys)
+
+	-- Catch assist: thrown balls gently curve toward the nearest player in their flight path
+	-- Works for ANY player (teammate or enemy) — this is a catch assist, not a team advantage
+	if self:GetWasThrown() and not self:GetCarrier():IsValid() then
+		local vel = phys:GetVelocity()
+		local speed = vel:Length()
+
+		-- Only guide fast-moving throws (not slow rolling balls)
+		if speed > 400 then
+			local bestTarget = nil
+			local bestDist = 800 -- Search radius
+			local myPos = self:GetPos()
+			local dir = vel:GetNormalized()
+			local lastCarrier = self:GetLastCarrier()
+
+			for _, ply in ipairs(player.GetAll()) do
+				if IsValid(ply) and ply:Alive() and ply ~= lastCarrier and not ply:IsCarrying() then
+					local plyPos = ply:GetPos() + Vector(0, 0, 48) -- Target upper chest
+					local dist = myPos:Distance(plyPos)
+					if dist < bestDist then
+						local toPly = (plyPos - myPos):GetNormalized()
+						local dot = dir:Dot(toPly)
+						-- Must already be arcing near them (dot > 0.85 = ~31 degree cone)
+						if dot > 0.85 then 
+							bestDist = dist
+							bestTarget = ply
+						end
+					end
+				end
+			end
+			
+			if IsValid(bestTarget) then
+				local toTarget = (bestTarget:GetPos() + Vector(0, 0, 48) - myPos):GetNormalized()
+				-- Gently rotate the velocity vector toward the target — preserves speed, looks like a real curve
+				local newDir = LerpVector(3.5 * FrameTime(), dir, toTarget):GetNormalized()
+				phys:SetVelocityInstantaneous(newDir * speed)
+			end
+		end
+	end
 end
 
 function ENT:Touch(ent)
@@ -151,21 +190,18 @@ function ENT:Touch(ent)
 		if team.HasPlayers(ent:Team() == TEAM_RED and TEAM_BLUE or TEAM_RED) or game.SinglePlayer() or game.MaxPlayers() == 1 then
 			if ent:IsValid() and ent:IsPlayer() then
 				if RecordMatchEvent then
-					RecordMatchEvent("possession_gain", ent)
+					RecordMatchEvent("possession_gain", ent, { was_thrown = self:GetWasThrown() })
+					if self:GetWasThrown() then
+						RecordMatchEvent("throw_received", ent)
+					end
 				end
-			elseif self.LastCarrierTeam ~= 0 and not ent:IsValid() then
-				if RecordMatchEvent then
-                    -- If we are losing possession (ent is invalid)
-                    RecordMatchEvent("possession_loss", self:GetCarrier())
-                end
-				-- Fumble or drop logic could go here, but usually handled by Drop()
-			end
-			self:SetCarrier(ent)
-			ent:AddFrags(1)
+				self:SetCarrier(ent)
+				ent:AddFrags(1)
 
-			--[[if util.Probability(3) then
-				ent:PlayVoiceSet(VOICESET_TAUNT)
-			end]]
+				--[[if util.Probability(3) then
+					ent:PlayVoiceSet(VOICESET_TAUNT)
+				end]]
+			end
 		else
 			net.Start("eft_centermsg")
 				net.WriteString("You can't take the ball with no one on the other team!")
@@ -203,6 +239,9 @@ function ENT:Drop(throwforce, suicide)
 			self.m_TeamPickupImmunity = CurTime() + 0.2
 		else
 			-- Notification removed by request
+			if RecordMatchEvent then
+				RecordMatchEvent("possession_loss", carrier, { reason = "fumble" })
+			end
 		end
 	end
 

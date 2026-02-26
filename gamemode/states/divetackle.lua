@@ -33,6 +33,17 @@ end
 
 function STATE:Ended(pl, newstate)
 	pl:Freeze(false)
+	pl.DiveGuideAngles = nil
+	pl.LastDiveYaw = nil
+	pl.DiveTwist = nil
+
+	-- Clear bone manipulation on CLIENT
+	if CLIENT then
+		local boneId = pl:LookupBone("ValveBiped.Bip01_Spine2") or pl:LookupBone("ValveBiped.Bip01_Spine1")
+		if boneId then
+			pl:ManipulateBoneAngles(boneId, Angle(0, 0, 0))
+		end
+	end
 
 	if SERVER then
 		for _, ent in pairs(ents.FindByClass("point_divetackletrigger")) do
@@ -86,9 +97,52 @@ end
 
 function STATE:UpdateAnimation(pl)
 	pl:SetPlaybackRate(0)
-	pl:SetCycle(CurTime() - pl:GetStateStart())
+	pl:SetCycle( (CurTime() - pl:GetStateStart()) * 1.5 % 1 )
+
+	if CLIENT then
+		-- Track yaw delta for twist calculation (runs every animation frame)
+		local currentYaw = pl:GetAngles().y
+		pl.LastDiveYaw = pl.LastDiveYaw or currentYaw
+		local yawDelta = math.AngleDifference(currentYaw, pl.LastDiveYaw)
+		pl.LastDiveYaw = currentYaw
+		
+		-- Calculate turn rate → bank angle
+		local turnRate = yawDelta / math.max(FrameTime(), 0.001)
+		local targetTwist = math.Clamp(turnRate * -0.5, -60, 60)
+		
+		pl.DiveTwist = Lerp(FrameTime() * 8, pl.DiveTwist or 0, targetTwist)
+	end
 
 	return true
+end
+
+-- Use bone manipulation to twist only the upper body during the dive.
+-- This affects the spine bone so the torso leans while legs stay in the dive pose.
+function STATE:BuildBonePositions(pl)
+	if not pl.DiveTwist or math.abs(pl.DiveTwist) < 0.5 then return end
+	
+	local boneId = pl:LookupBone("ValveBiped.Bip01_Spine2")
+	if not boneId then
+		-- Fallback: try spine1
+		boneId = pl:LookupBone("ValveBiped.Bip01_Spine1")
+	end
+	if not boneId then return end
+	
+	pl:ManipulateBoneAngles(boneId, Angle(0, 0, pl.DiveTwist))
+end
+
+function STATE:PrePlayerDraw(pl)
+	-- Nothing needed — bone manipulation handles the twist
+end
+
+function STATE:PostPlayerDraw(pl)
+	-- Clear bone manipulation so it doesn't persist after draw
+	if pl.DiveTwist and math.abs(pl.DiveTwist) >= 0.5 then
+		local boneId = pl:LookupBone("ValveBiped.Bip01_Spine2") or pl:LookupBone("ValveBiped.Bip01_Spine1")
+		if boneId then
+			pl:ManipulateBoneAngles(boneId, Angle(0, 0, 0))
+		end
+	end
 end
 
 -- Limit turn rate to 25% during dive (some control, but no 360 spins)

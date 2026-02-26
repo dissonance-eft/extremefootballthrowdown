@@ -30,7 +30,7 @@
 MapVote = MapVote or {}
 MapVote.Config = {
     MapLimit = 24,
-    TimeLimit = 28,
+    TimeLimit = 15,
     AllowCurrentMap = false,
     EnableCooldown = true,
     MapsBeforeRevote = 3,
@@ -258,16 +258,6 @@ function MapVote.Cancel()
     end
 end
 
--- Admin console command to force a map vote
-concommand.Add("eft_mapvote", function(ply)
-    if IsValid(ply) and not ply:IsAdmin() then return end
-    MapVote.Start()
-end)
-
-concommand.Add("eft_mapvote_cancel", function(ply)
-    if IsValid(ply) and not ply:IsAdmin() then return end
-    MapVote.Cancel()
-end)
 
 -- ============================================================================
 -- ROCK THE VOTE
@@ -355,8 +345,3 @@ hook.Add("PlayerSay", "EFT_RTV_ChatCommand", function(ply, text)
     end
 end)
 
-concommand.Add("rtv_start", function(ply)
-    if IsValid(ply) then
-        RTV.AddVote(ply)
-    end
-end)

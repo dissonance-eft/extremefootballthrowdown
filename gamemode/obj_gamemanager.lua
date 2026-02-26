@@ -170,7 +170,11 @@ function GameManager:PreRoundStart(iNum)
     SetGlobalBool("InPostRound", false)
 
     -- Should the game end? Check for overtime on tied scores first.
-    if CurTime() >= GM:GetTimeLimit() or self:HasReachedRoundLimit(iNum) then
+    -- Also catch the ghost-round case: a goal was scored with <10s left, BonusTime
+    -- inflated GetTimeLimit() past CurTime(), but there's no meaningful time left.
+    local savedTime = GetGlobalFloat("GameTimeRemaining", self.RoundLength)
+    local ghostRound = iNum > 1 and not self:GetOvertime() and savedTime > 0 and savedTime < 10
+    if ghostRound or CurTime() >= GM:GetTimeLimit() or self:HasReachedRoundLimit(iNum) then
         if not self:GetOvertime() and team.GetScore(TEAM_RED) == team.GetScore(TEAM_BLUE) then
             GM:SetOvertime(true)
         else
@@ -430,7 +434,7 @@ function GameManager:OnTeamScored(teamid, hitter, points, istouch)
     gamemode.Call("OnTeamScored", teamid, hitter, points, istouch)
 
     if RecordMatchEvent then
-        RecordMatchEvent("goal", hitter, {points = points, istouch = istouch, team = teamid})
+        RecordMatchEvent("goal", hitter, {points = points, istouch = istouch == true, team = teamid})
     end
 end
 
