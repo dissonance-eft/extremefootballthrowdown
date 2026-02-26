@@ -7,6 +7,7 @@ include("shared.lua")
 include("lib/class.lua")
 include("lib/promise.lua")
 include("lib/event.lua")
+include("lib/d3bot/d3bot_init.lua") -- D3bot navmesh editor (client-side UI)
 
 -- Manifest Tools
 include("cl_manifest_debug.lua")
@@ -189,9 +190,11 @@ function GM:_CreateMove(cmd)
 		return
 	end
 
-	-- Prevent ducking while airborne (crouch-jump bonus baked into JumpPower instead)
-	if bit_band(cmd:GetButtons(), IN_DUCK) ~= 0 and MySelf:GetMoveType() == MOVETYPE_WALK and not MySelf:OnGround() and not MySelf:IsSwimming() and MySelf:Alive() then
-		cmd:SetButtons(bit_band(cmd:GetButtons(), bit.bnot(IN_DUCK)))
+	-- No air crouching — clearance bonus baked into JumpPower
+	if MySelf:Alive() and MySelf:GetMoveType() == MOVETYPE_WALK and not MySelf:OnGround() and not MySelf:IsSwimming() then
+		if bit.band(cmd:GetButtons(), IN_DUCK) ~= 0 then
+			cmd:SetButtons(bit.band(cmd:GetButtons(), bit.bnot(IN_DUCK)))
+		end
 	end
 
 	local ang = cmd:GetViewAngles()
@@ -1317,7 +1320,7 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 
 		-- Camera tilt & FOV effects
 		local vel = pl:GetVelocity()
-		local speed = vel:Length()
+		local speed = vel:Length2D() -- Horizontal speed only (ignore vertical from jumps)
 		
 		-- Mild tilt at ALL speeds (subtle body english during normal movement)
 		if speed > 80 then
