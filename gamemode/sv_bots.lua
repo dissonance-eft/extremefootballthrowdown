@@ -16,6 +16,8 @@ CreateConVar("eft_bots_skill", "1.0", FCVAR_NOTIFY, "Bot skill multiplier (0.1 -
 
 local function CreateBot(teamid)
     if not teamid then return end
+    if game.SinglePlayer() then return end -- Can't create bots in singleplayer
+    
     -- Human-like Bot Names (No more "Bot 34")
     local botNames = {
         "ViperBot", "CobraBot", "PythonBot", "RaptorBot", "RexBot", "TankBot", "DozerBot",
@@ -49,12 +51,11 @@ local function CreateBot(teamid)
     end
     
     local bot = player.CreateNextBot(name)
-    if IsValid(bot) then
-        bot.BotAI = Bot(bot)
-        bot:SetTeam(teamid)
-        -- Model set by player class usually, but ensure init
-        bot:Spawn()
-    end
+    if not IsValid(bot) then return end -- CreateFakeClient failed (server full or singleplayer)
+    
+    bot.BotAI = Bot(bot)
+    bot:SetTeam(teamid)
+    bot:Spawn()
     return bot
 end
 

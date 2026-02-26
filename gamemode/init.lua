@@ -64,6 +64,8 @@ include("server/sv_match_recorder.lua") -- Enable Match Recording
 include("lib/promise.lua")
 include("lib/class.lua")
 include("lib/event.lua")
+AddCSLuaFile("lib/d3bot/azlib.lua")
+AddCSLuaFile("lib/d3bot/d3bot_init.lua")
 include("lib/d3bot/d3bot_init.lua") -- D3bot navigation engine (node graph + A* + editor)
 include("obj_bot.lua") -- Define Bot class BEFORE sv_bots.lua uses it!
 include("sv_bot_pathfinding.lua")

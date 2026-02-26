@@ -207,12 +207,7 @@ return function(globalK, otherLibFilesRelPathEach)
 		lib.ExecuteLibFile(relInfo)
 	end
 	
-	if _G[globalK] then
-		-- Already initialized (map change / lua_openscript reload) — reuse existing table
-		lib = _G[globalK]
-	else
-		_G[globalK] = lib
-	end
+	_G[globalK] = lib
 	lib.GlobalK = globalK
 	lib.IsInitialized = true
 end

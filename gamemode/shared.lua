@@ -398,16 +398,19 @@ function GM:Move(pl, move)
 		pl:SetGroundEntity(NULL)
 		move:SetVelocity(nextvel)
 		pl:SetNextMoveVelocity(vector_origin)
+		pl._jumpPadTime = CurTime() -- Flag: launched by jump pad
 		return
 	end
 
 	local ret = pl:CallStateFunction("Move", move)
 	if ret then
 		if ret == MOVE_STOP then return end
-		if ret == MOVE_OVERRIDE then return true end
+		if ret == MOVE_OVERRIDE then return true
+		end
 	end
 
 	if pl:OnGround() then
+		pl._jumpPadTime = nil -- Clear pad flag on landing
 		local carry = pl:GetCarry()
 		if carry:IsValid() and carry == self:GetBall() then
 			if not carry:CallStateFunction("PreMove", pl, move) then
@@ -423,6 +426,16 @@ function GM:Move(pl, move)
 	else
 		move:SetMaxSpeed(move:GetMaxSpeed() * 0.2)
 		move:SetMaxClientSpeed(move:GetMaxClientSpeed() * 0.2)
+		
+		-- Extra gravity for normal jumps only (2x total = snappy arc)
+		-- Skip for: dives (own physics), jump pads (3s grace period)
+		local isDive = pl:GetState() == STATE_DIVETACKLE
+		local isJumpPad = pl._jumpPadTime and (CurTime() - pl._jumpPadTime) < 3
+		if not isDive and not isJumpPad then
+			local vel = move:GetVelocity()
+			vel.z = vel.z - 600 * FrameTime() -- +1g extra (600 HU/s²)
+			move:SetVelocity(vel)
+		end
 	end
 
 	ret = pl:CallStateFunction("PostMove", move)
