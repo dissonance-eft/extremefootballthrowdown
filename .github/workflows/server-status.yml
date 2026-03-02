@@ -1,0 +1,47 @@
+name: Server Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch server info
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            echo "====== DISK USAGE ======"
+            df -h /
+
+            echo ""
+            echo "====== REPLAY FILES ======"
+            REPLAY_DIR="/home/gmod/server/garrysmod/data/eft_replays"
+            if [ -d "$REPLAY_DIR" ]; then
+              COUNT=$(ls "$REPLAY_DIR"/*.json 2>/dev/null | wc -l)
+              SIZE=$(du -sh "$REPLAY_DIR" 2>/dev/null | cut -f1)
+              echo "Count: $COUNT files, Total size: $SIZE"
+              echo "Newest 5:"
+              ls -lt "$REPLAY_DIR"/*.json 2>/dev/null | head -5 | awk '{print $NF, $5}'
+              echo "Oldest 5:"
+              ls -ltr "$REPLAY_DIR"/*.json 2>/dev/null | head -5 | awk '{print $NF, $5}'
+            else
+              echo "Replay dir not found"
+            fi
+
+            echo ""
+            echo "====== SRCDS SERVICE ======"
+            systemctl status eft-srcds --no-pager -l | head -20
+
+            echo ""
+            echo "====== LAST 60 LOG LINES ======"
+            LOG=$(find /home/gmod/server -name "*.log" -newer /home/gmod/server/srcds_run 2>/dev/null | head -1)
+            if [ -n "$LOG" ]; then
+              echo "Log file: $LOG"
+              tail -60 "$LOG"
+            else
+              journalctl -u eft-srcds --no-pager -n 60 2>/dev/null || echo "No log found"
+            fi
