@@ -61,6 +61,7 @@ include("sv_mapvote.lua")
 include("utility.lua")
 include("sv_emotes.lua")
 include("server/sv_match_recorder.lua") -- Enable Match Recording
+include("server/sv_downloads.lua")       -- FastDL resource list
 include("lib/promise.lua")
 include("lib/class.lua")
 include("lib/event.lua")
