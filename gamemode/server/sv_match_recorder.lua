@@ -14,6 +14,7 @@ RECORDING.StartTime = 0
 -- Configuration
 local MAX_SPATIAL_DIST = 1400 -- Units to look for relevant players
 local REPLAY_DIR = "eft_replays"
+local MAX_REPLAYS = 50 -- Keep only the most recent N replay files
 
 if not file.Exists(REPLAY_DIR, "DATA") then
 	file.CreateDir(REPLAY_DIR)
@@ -84,6 +85,17 @@ function RECORDING:EndMatch()
 
 	print("[MatchRecorder] Saved replay to data/" .. filename)
 	self.MatchData = {}
+
+	-- Rotate: delete oldest replays if over the cap
+	local files = file.Find(REPLAY_DIR .. "/match_*.json", "DATA")
+	table.sort(files) -- filenames are timestamped so sort = oldest first
+	local overflow = #files - MAX_REPLAYS
+	if overflow > 0 then
+		for i = 1, overflow do
+			file.Delete(REPLAY_DIR .. "/" .. files[i])
+		end
+		print("[MatchRecorder] Pruned " .. overflow .. " old replay(s), keeping last " .. MAX_REPLAYS)
+	end
 end
 
 local function GetSpatialContext(focusPos)
