@@ -8,6 +8,31 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Check server is empty
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            PLAYERS=$(python3 -c "
+            import socket, struct
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(3)
+            s.sendto(b'\xff\xff\xff\xffTSource Engine Query\x00', ('127.0.0.1', 27015))
+            try:
+                data = s.recvfrom(4096)[0]
+                print(data[15])
+            except:
+                print(0)
+            s.close()
+            " 2>/dev/null || echo 0)
+            echo "Active players: $PLAYERS"
+            if [ "$PLAYERS" -gt 0 ]; then
+              echo "ERROR: Server has $PLAYERS active player(s). Deploy aborted to avoid interrupting a live game."
+              exit 1
+            fi
+
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
         with:
