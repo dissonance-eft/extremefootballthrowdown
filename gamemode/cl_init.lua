@@ -1345,7 +1345,7 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 				util.ScreenShake(origin, 14, 15, 0.5, 128)
 				
 				-- Bump the camera tilt out of place realistically, so it smoothly swings back
-				roll = roll + math.Rand(-10, 10)
+				roll = roll + math.Rand(-3, 3)
 			else
 				-- Quickly and smoothly recover back to normal zero tilt
 				roll = Lerp(10 * FrameTime(), roll, 0)
@@ -1359,7 +1359,7 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 		pl.LastFrameSpeed = speed
 	end
 
-	roll = math.Approach(roll, targetroll, math_max(0.25, math.sqrt(math.abs(roll))) * 30 * FrameTime())
+	roll = Lerp(FrameTime() * 8, roll, targetroll)
 	angles.roll = angles.roll + roll
 	lerpfov = math.Approach(lerpfov or fov, fov, FrameTime() * 60)
 

@@ -141,8 +141,8 @@ function ENT:PhysicsUpdate(phys)
 	phys:Wake()
 	self:CallStateFunction("PhysicsUpdate", phys)
 
-	-- Catch assist: thrown balls gently curve toward the nearest player in their flight path
-	-- Works for ANY player (teammate or enemy) — this is a catch assist, not a team advantage
+	-- Catch assist: thrown balls gently curve toward the nearest teammate in their flight path
+	-- Only curves toward teammates of the thrower (not enemies)
 	if self:GetWasThrown() and not self:GetCarrier():IsValid() then
 		local vel = phys:GetVelocity()
 		local speed = vel:Length()
@@ -154,16 +154,18 @@ function ENT:PhysicsUpdate(phys)
 			local myPos = self:GetPos()
 			local dir = vel:GetNormalized()
 			local lastCarrier = self:GetLastCarrier()
+			local lastCarrierTeam = self:GetLastCarrierTeam()
 
 			for _, ply in ipairs(player.GetAll()) do
-				if IsValid(ply) and ply:Alive() and ply ~= lastCarrier and not ply:IsCarrying() then
+				if IsValid(ply) and ply:Alive() and ply ~= lastCarrier and not ply:IsCarrying()
+					and lastCarrierTeam ~= 0 and ply:Team() == lastCarrierTeam then
 					local plyPos = ply:GetPos() + Vector(0, 0, 48) -- Target upper chest
 					local dist = myPos:Distance(plyPos)
 					if dist < bestDist then
 						local toPly = (plyPos - myPos):GetNormalized()
 						local dot = dir:Dot(toPly)
-						-- Must already be arcing near them (dot > 0.85 = ~31 degree cone)
-						if dot > 0.85 then 
+						-- Must already be arcing near them (dot > 0.90 = ~26 degree cone)
+						if dot > 0.90 then 
 							bestDist = dist
 							bestTarget = ply
 						end
@@ -174,7 +176,7 @@ function ENT:PhysicsUpdate(phys)
 			if IsValid(bestTarget) then
 				local toTarget = (bestTarget:GetPos() + Vector(0, 0, 48) - myPos):GetNormalized()
 				-- Gently rotate the velocity vector toward the target — preserves speed, looks like a real curve
-				local newDir = LerpVector(3.5 * FrameTime(), dir, toTarget):GetNormalized()
+				local newDir = LerpVector(2.0 * FrameTime(), dir, toTarget):GetNormalized()
 				phys:SetVelocityInstantaneous(newDir * speed)
 			end
 		end

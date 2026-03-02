@@ -427,15 +427,6 @@ function GM:Move(pl, move)
 		move:SetMaxSpeed(move:GetMaxSpeed() * 0.2)
 		move:SetMaxClientSpeed(move:GetMaxClientSpeed() * 0.2)
 		
-		-- Extra gravity for normal jumps only (2x total = snappy arc)
-		-- Skip for: dives (own physics), jump pads (3s grace period)
-		local isDive = pl:GetState() == STATE_DIVETACKLE
-		local isJumpPad = pl._jumpPadTime and (CurTime() - pl._jumpPadTime) < 3
-		if not isDive and not isJumpPad then
-			local vel = move:GetVelocity()
-			vel.z = vel.z - 600 * FrameTime() -- +1g extra (600 HU/s²)
-			move:SetVelocity(vel)
-		end
 	end
 
 	ret = pl:CallStateFunction("PostMove", move)

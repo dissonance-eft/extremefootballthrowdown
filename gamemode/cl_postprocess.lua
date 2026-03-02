@@ -25,7 +25,11 @@ function GM:DoPostProcessing()
 		target = 0 -- Fully greyscale when dead
 	end
 
-	ColorModTime["$pp_colour_colour"] = math.Approach(ColorModTime["$pp_colour_colour"], target, RealFrameTime() * 4)
+	if target < ColorModTime["$pp_colour_colour"] then
+		ColorModTime["$pp_colour_colour"] = target -- Snap instantly to B&W (pre-round / death)
+	else
+		ColorModTime["$pp_colour_colour"] = math.Approach(ColorModTime["$pp_colour_colour"], target, RealFrameTime() * 4)
+	end
 
 	if ColorModTime["$pp_colour_colour"] ~= 1 then
 		DrawColorModify(ColorModTime)

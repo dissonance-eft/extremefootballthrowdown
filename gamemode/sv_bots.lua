@@ -50,9 +50,12 @@ local function CreateBot(teamid)
         name = "Bot " .. math.random(100, 999)
     end
     
+    -- Don't attempt if the server is full — prevents error spam when maxplayers < bot target
+    if player.GetCount() >= game.MaxPlayers() then return end
+
     local bot = player.CreateNextBot(name)
-    if not IsValid(bot) then return end -- CreateFakeClient failed (server full or singleplayer)
-    
+    if not IsValid(bot) then return end -- CreateFakeClient failed
+
     bot.BotAI = Bot(bot)
     bot:SetTeam(teamid)
     bot:Spawn()
@@ -67,7 +70,12 @@ end
 
 local function BalanceTeams()
     if not GetConVar("eft_bots_enabled"):GetBool() then return end
-    
+
+    -- CreateFakeClient() requires at least one human player to be connected.
+    -- Without a human, the engine rejects fake clients entirely.
+    local humanCount = player.GetCount() - #player.GetBots()
+    if humanCount == 0 then return end
+
     -- Default to 10 bots total (5 per team) if convar missing
     local totalBots = 10
     if ConVarExists("eft_bots_count") then
@@ -112,11 +120,20 @@ local function BalanceTeams()
 end
 
 timer.Create("EFTBotBalance", 2.0, 0, BalanceTeams)
+
+-- Initial fill: try once a second after map load in case humans are already connected
 hook.Add("InitPostEntity", "EFTBotInitSpawn", function()
-    -- Spawn immediately on map load
-    timer.Simple(1, function() 
-        for i=1, 6 do BalanceTeams() end 
-    end) 
+    timer.Simple(1, function()
+        for i = 1, 6 do BalanceTeams() end
+    end)
+end)
+
+-- Also re-trigger a staggered fill whenever a new human joins mid-session
+hook.Add("PlayerInitialSpawn", "EFTBotFillOnJoin", function(ply)
+    if ply:IsBot() then return end
+    for i = 1, 6 do
+        timer.Simple(i * 0.75, function() BalanceTeams() end)
+    end
 end)
 
 -- ============================================================================
