@@ -33,6 +33,12 @@ function GM:CalcMainActivity(pl, velocity)
 	pl.CalcIdeal = ACT_HL2MP_IDLE
 	pl.CalcSeqOverride = -1
 
+	-- Bot dance override: persists across frames via CalcSeqOverride (SetSequence is overridden every frame)
+	if SERVER and pl:IsBot() and pl.BotAI and pl.BotAI.forcedSeq and pl.BotAI.forcedSeq > 0 then
+		pl.CalcSeqOverride = pl.BotAI.forcedSeq
+		return pl.CalcIdeal, pl.CalcSeqOverride
+	end
+
 	self:HandlePlayerLanding( pl, velocity, pl.m_bWasOnGround )
 
 	if not ( self:HandlePlayerJumping( pl, velocity ) or self:HandlePlayerDucking( pl, velocity ) or self:HandlePlayerSwimming( pl, velocity ) ) then

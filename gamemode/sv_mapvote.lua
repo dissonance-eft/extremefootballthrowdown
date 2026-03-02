@@ -181,12 +181,14 @@ function MapVote.Start(length, allowCurrent, limit, prefixes, callback)
     end
 
     -- Send vote start to all clients
+    -- Write absolute server end time so client countdown matches server timer exactly
+    local endTime = CurTime() + length
     net.Start("EFT_MapVoteStart")
         net.WriteUInt(#voteMaps, 32)
         for i = 1, #voteMaps do
             net.WriteString(voteMaps[i])
         end
-        net.WriteUInt(length, 32)
+        net.WriteFloat(endTime)
     net.Broadcast()
 
     MapVote.Allow = true

@@ -89,6 +89,10 @@ function GM:AddRoundTime( fAddedTime )
 		net.WriteFloat( fAddedTime )
 	net.Broadcast()
 
+	net.Start("eft_roundtimer")
+		net.WriteFloat(newEnd)
+	net.Broadcast()
+
 end
 
 // This gets the timer for a round (you can make round number dependant round lengths, or make it cvar controlled)
@@ -114,8 +118,9 @@ function GM:OnTimerTick()
     local timeLeft = endTime - CurTime()
     
     -- Overwatch-style Countdown (10s) - End of Round
-    if timeLeft <= 10 and timeLeft > 0 then
-        local sec = math.ceil(timeLeft)
+    -- floor so the sound fires when the display first shows that digit, not one second after
+    if timeLeft < 11 and timeLeft >= 1 then
+        local sec = math.floor(timeLeft)
         if not self.CountDownPlayed then self.CountDownPlayed = {} end
         
         if not self.CountDownPlayed[sec] then
@@ -146,8 +151,13 @@ function GM:OnTimerTick()
         net.Broadcast()
     end
 
-    -- PreRound Countdown REMOVED per user request
-    -- Only the final 10s countdown of the round remains.
+    -- Periodic resync: push accurate end time to clients every 10s (handles reconnects + any drift)
+    if not self.LastTimerSync or CurTime() - self.LastTimerSync >= 10 then
+        self.LastTimerSync = CurTime()
+        net.Start("eft_roundtimer")
+            net.WriteFloat(endTime)
+        net.Broadcast()
+    end
 end
 
 function GM:RoundStart()

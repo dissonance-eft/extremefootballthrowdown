@@ -92,15 +92,6 @@ function STATE:Think(pl)
 	if not (pl:IsOnGround() and pl:WaterLevel() < 2) then
 		pl:EndState(true)
 	elseif CurTime() >= pl:GetStateEnd() then
-		if SERVER then
-			for _, tr in ipairs(pl:GetTargets()) do
-				local hitent = tr.Entity
-				if hitent:IsPlayer() and (hitent.CrossCounteredBy ~= pl or CurTime() >= (hitent.CrossCounteredTime or -math.huge) + 1) then
-					pl:PunchHit(hitent, tr)
-				end
-			end
-		end
-
 		pl:EndState(true)
 	end
 end

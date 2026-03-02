@@ -467,7 +467,9 @@ function GM:DefaultMove(pl, move)
 		local acceleration = carry:IsValid() and carry.GetAcceleration and carry:GetAcceleration() or 1
 		local newspeed = math_max(curspeed + FrameTime()--[[delta]] * (15 + 0.5 * (400 - curspeed)) * acceleration, 100) * (1 - math_max(0, math_abs(math_AngleDifference(move:GetMoveAngles().yaw, curvel:Angle().yaw)) - 4) / 360)
 
-		move:SetSideSpeed(0)
+		if not pl:IsCarrying() then
+			move:SetSideSpeed(0)
+		end
 		move:SetMaxSpeed(newspeed)
 		move:SetMaxClientSpeed(newspeed)
 	else

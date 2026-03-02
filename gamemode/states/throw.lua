@@ -32,7 +32,12 @@ function STATE:Ended(pl, newstate)
 			local phys = carrying:GetPhysicsObject()
 			if phys:IsValid() then
 				phys:Wake()
-				phys:SetVelocityInstantaneous(pl:GetAimVector() * throwforce)
+				-- Slight imprecision: ±1.5° per axis (~2° max diagonal)
+				-- Subtle on short passes, ~1 player-width off on long bombs
+				local aimAng = pl:GetAimVector():Angle()
+				aimAng.p = aimAng.p + math.Rand(-1.5, 1.5)
+				aimAng.y = aimAng.y + math.Rand(-1.5, 1.5)
+				phys:SetVelocityInstantaneous(aimAng:Forward() * throwforce)
 				phys:AddAngleVelocity(VectorRand() * math.Rand(-450, 450))
 			end
 

@@ -58,15 +58,17 @@ function PlayerController:CanCharge()
 end
 
 --- Orient the player model to match eye angles and set movement pose parameter.
---- Both SetLocalAngles (animation resolver) and SetRenderAngles (visual) needed on CLIENT.
+--- Body uses yaw only — pitch is handled by the engine's aim_pitch pose parameter
+--- so the head/spine aim up/down while the body stays flat.
 --- Maps to: C# `Transform.Rotation` + `AnimationHelper.MoveYaw`
 ---@param velocity Vector The player's current velocity
 function PlayerController:FixModelAngles(velocity)
     local ply = self.ply
     local eye = ply:EyeAngles()
-    ply:SetLocalAngles(eye)
+    local bodyAng = Angle(0, eye.y, 0)
+    ply:SetLocalAngles(bodyAng)
     if CLIENT then
-        ply:SetRenderAngles(eye)
+        ply:SetRenderAngles(bodyAng)
     end
     ply:SetPoseParameter("move_yaw", math.NormalizeAngle(velocity:Angle().yaw - eye.y))
 end

@@ -481,6 +481,7 @@ function GM:Initialize()
 	util.AddNetworkString("eft_screencrack")
 	util.AddNetworkString("eft_overtime")
 	util.AddNetworkString("eft_centermsg")
+	util.AddNetworkString("eft_roundtimer")
 
 	self:RegisterWeapons()
 
@@ -1077,6 +1078,20 @@ function GM:KeyPress(ply, key)
 		return
 	end
 	return self.BaseClass:KeyPress(ply, key)
+end
+
+-- Fix spectator visleaf culling: the engine uses the player's entity origin for PVS,
+-- not the camera position. When spectating the ball cam the camera floats 350+ units
+-- away, so geometry visible from the camera gets culled. AddOriginToPVS tells the
+-- engine to also include all visleafs visible from the ball's position.
+function GM:SetupPlayerVisibility(ply, viewEntity)
+	if ply:GetObserverMode() == OBS_MODE_CHASE then
+		local ball = nil
+		for _, ent in ipairs(ents.FindByClass("prop_ball")) do ball = ent break end
+		if IsValid(ball) then
+			AddOriginToPVS(ball:GetPos())
+		end
+	end
 end
 
 local function TimeLeft( ply )

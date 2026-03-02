@@ -143,7 +143,9 @@ function ENT:PhysicsUpdate(phys)
 
 	-- Catch assist: thrown balls gently curve toward the nearest teammate in their flight path
 	-- Only curves toward teammates of the thrower (not enemies)
-	if self:GetWasThrown() and not self:GetCarrier():IsValid() then
+	-- Delay matches m_TeamPickupImmunity so the pass clears the thrower before homing activates
+	if self:GetWasThrown() and not self:GetCarrier():IsValid()
+		and CurTime() >= (self.m_TeamPickupImmunity or 0) then
 		local vel = phys:GetVelocity()
 		local speed = vel:Length()
 
@@ -158,7 +160,8 @@ function ENT:PhysicsUpdate(phys)
 
 			for _, ply in ipairs(player.GetAll()) do
 				if IsValid(ply) and ply:Alive() and ply ~= lastCarrier and not ply:IsCarrying()
-					and lastCarrierTeam ~= 0 and ply:Team() == lastCarrierTeam then
+					and lastCarrierTeam ~= 0 and ply:Team() == lastCarrierTeam
+					and ply:GetState() ~= STATE_KNOCKEDDOWN then
 					local plyPos = ply:GetPos() + Vector(0, 0, 48) -- Target upper chest
 					local dist = myPos:Distance(plyPos)
 					if dist < bestDist then

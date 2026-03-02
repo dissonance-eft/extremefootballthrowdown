@@ -32,10 +32,18 @@ include("cl_postprocess.lua")
 
 include("vgui/dex3dnotification.lua")
 
--- Suppress ALL join/leave/team change messages for bots
+-- Custom round timer: server pushes the absolute end time via net message.
+-- This bypasses SetGlobalFloat's ~1Hz batching and arrives within one network frame.
+-- 0 = no active timer (frozen, between rounds).
+net.Receive("eft_roundtimer", function()
+	GAMEMODE.NetRoundEndsAt = net.ReadFloat()
+end)
+
+-- Suppress join/leave messages for bots and "unconnected" (pre-auth name)
 -- Bot names always end in "Bot" (ViperBot, CobraBot, etc.)
 hook.Add("ChatText", "SuppressBotJoinLeave", function(index, name, text, type)
 	if type == "joinleave" then
+		if name == "unconnected" then return true end
 		if string.EndsWith(name, "Bot") then return true end
 		-- Also check the full text for bot names (disconnect messages use full text)
 		if string.find(text, "Bot", 1, true) then return true end
@@ -1324,28 +1332,28 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 		
 		-- Mild tilt at ALL speeds (subtle body english during normal movement)
 		if speed > 80 then
-			local mildTilt = vel:GetNormalized():Dot(angles:Right()) * math.Clamp(speed / 350, 0, 1) * 5
+			local mildTilt = vel:GetNormalized():Dot(angles:Right()) * math.Clamp(speed / 350, 0, 1) * 3
 			targetroll = targetroll + mildTilt
 		end
-		
+
 		-- CHARGING: Aggressive missile-like tunnel vision
 		if speed >= 290 then
 			local intensity = math.Clamp((speed - 290) / 60, 0, 1)
 			local fwdDot = math.Clamp(math.abs(angles:Forward():Dot(vel:GetNormalized())), 0, 1)
-			
+
 			-- FOV widen to simulate speed (up to 20% wider)
 			fov = fov + fov * fwdDot * 0.20 * intensity
-			
+
 			-- Charge tilt on top of the mild tilt
-			targetroll = targetroll + vel:GetNormalized():Dot(angles:Right()) * 20 * intensity
+			targetroll = targetroll + vel:GetNormalized():Dot(angles:Right()) * 10 * intensity
 		elseif speed < 150 then
 			-- Snappy recovery if tackled/stopped suddenly to feel the jarring crash of losing momentum
 			if (pl.LastFrameSpeed or 0) >= 290 then
 				-- We just slammed into a wall or got tackled out of a charge!
-				util.ScreenShake(origin, 14, 15, 0.5, 128)
-				
+				util.ScreenShake(origin, 7, 8, 0.4, 128)
+
 				-- Bump the camera tilt out of place realistically, so it smoothly swings back
-				roll = roll + math.Rand(-3, 3)
+				roll = roll + math.Rand(-1.5, 1.5)
 			else
 				-- Quickly and smoothly recover back to normal zero tilt
 				roll = Lerp(10 * FrameTime(), roll, 0)
@@ -1827,9 +1835,10 @@ function GM:DrawScoreboard()
 
     if isWarmup then
     	timeleft = math.max(0, self.WarmUpLength - CurTime())
-    elseif roundIsLive and roundEndsAt > 0 then
-    	-- Active gameplay: use RoundEndsAt (same value server checks against).
-    	timeleft = roundEndsAt - CurTime()
+    elseif roundIsLive then
+    	-- Active gameplay: prefer net-pushed end time (immediate delivery) over SetGlobalFloat (batched).
+    	local endsAt = (GAMEMODE.NetRoundEndsAt and GAMEMODE.NetRoundEndsAt > 0) and GAMEMODE.NetRoundEndsAt or roundEndsAt
+    	timeleft = endsAt - CurTime()
     elseif gameTimeRemaining > 0 then
     	-- Frozen clock: celebration, post-round, or pre-round countdown.
     	-- GameTimeRemaining is snapshotted by the server at the moment of each goal.
@@ -1969,7 +1978,9 @@ function GM:UpdateHUD_Dead( bWaitingToSpawn, InRound )
 		local RoundTimer = vgui.Create( "DHudCountdown" )
 			RoundTimer:SizeToContents()
 			RoundTimer:SetValueFunction( function()
-				if ( GetGlobalFloat( "RoundStartTime", 0 ) > CurTime() ) then return GetGlobalFloat( "RoundStartTime", 0 )  end
+				if ( GetGlobalFloat( "RoundStartTime", 0 ) > CurTime() ) then return GetGlobalFloat( "RoundStartTime", 0 ) end
+				-- Prefer net-pushed end time (bypasses SetGlobalFloat batching); fall back to GetTimeLimit()
+				if GAMEMODE.NetRoundEndsAt and GAMEMODE.NetRoundEndsAt > 0 then return GAMEMODE.NetRoundEndsAt end
 				return GAMEMODE:GetTimeLimit()
 			end )
 			RoundTimer:SetLabel( "TIME" )
@@ -2119,6 +2130,7 @@ end
 
 function GM:TeamChangeNotification( ply, oldteam, newteam )
 	if( ply && ply:IsValid() ) then
+		if ply:IsBot() then return end
 		local nick = ply:Nick();
 		local oldTeamColor = team.GetColor( oldteam );
 		local newTeamName = team.GetName( newteam );

@@ -460,19 +460,16 @@ function Bot:Think()
     if isIdle then
         self.state = Bot.STATE_IDLE
         if not self.nextDanceTime or CurTime() >= self.nextDanceTime then
-            -- Force a taunt animation directly (ConCommand 'act' is sandbox-only)
+            -- Route through CalcMainActivity via forcedSeq (SetSequence is overridden every frame)
             local seqs = {"taunt_robot", "taunt_dance", "taunt_muscle", "taunt_laugh",
                           "taunt_cheer", "taunt_persistence", "taunt_zombie"}
             local seq = self.ply:LookupSequence(table.Random(seqs))
-            if seq and seq > 0 then
-                self.ply:SetSequence(seq)
-                self.ply:SetPlaybackRate(1)
-                self.ply:ResetSequenceInfo()
-            end
+            self.forcedSeq = (seq and seq > 0) and seq or nil
             self.nextDanceTime = CurTime() + 3 + math.random() * 2
         end
         return
     else
+        self.forcedSeq = nil
         self.nextDanceTime = nil
     end
 
@@ -701,7 +698,17 @@ function Bot:ExecuteState()
                             local throwForce = 1100 * ((1 + throwPower) / 2)
 
                             local fromPos = botPos + Vector(0, 0, 64) -- approximate GetShootPos()
-                            local calcPitch, flightTime = CalcThrowPitch(fromPos, actualGoalPos, throwForce)
+
+                            -- Skip goal shot if brush geometry blocks the direct path (tunnel, wall, etc.)
+                            local losTr = util.TraceLine({
+                                start = fromPos,
+                                endpos = actualGoalPos,
+                                mask = MASK_SOLID_BRUSHONLY,
+                            })
+                            local calcPitch, flightTime
+                            if not losTr.Hit then
+                                calcPitch, flightTime = CalcThrowPitch(fromPos, actualGoalPos, throwForce)
+                            end
 
                             if calcPitch then
                                 self.throwState = "goalshot"
@@ -719,13 +726,13 @@ function Bot:ExecuteState()
                                 -- Add imperfection (P-060)
                                 if math.random() < 0.5 then
                                     -- 50% chance for an accurate shot (close to target, minor variance)
-                                    self.targetPitch = self.targetPitch + math.Rand(-2.5, 2.5)
-                                    self.targetYaw = self.targetYaw + math.Rand(-3.5, 3.5)
+                                    self.targetPitch = self.targetPitch + math.Rand(-1.25, 1.25)
+                                    self.targetYaw = self.targetYaw + math.Rand(-1.75, 1.75)
                                 else
                                     -- 50% chance for a near-miss (off enough to clip edges or sail just past)
-                                    self.targetPitch = self.targetPitch + math.Rand(-5, 5)
-                                    
-                                    local missOffset = math.Rand(5, 12)
+                                    self.targetPitch = self.targetPitch + math.Rand(-2.5, 2.5)
+
+                                    local missOffset = math.Rand(2.5, 6)
                                     if math.random() > 0.5 then
                                         self.targetYaw = self.targetYaw + missOffset
                                     else
@@ -833,29 +840,56 @@ function Bot:ExecuteState()
             end
 
             -- === THROW PASS (to teammates) ===
-            -- Passing should only occur under high pressure, and realistically has a high failure rate (~75% failure)
-            -- This models the "1 second vulnerability" of the windup window.
+            -- Two triggers:
+            --   Pressure pass: ≥2 blockers in path, bot is being stopped
+            --   Offensive pass: teammate is significantly closer to goal with open lane
+            -- Timing model: bots misjudge safety ~20% of the time (start throw when an
+            -- enemy is actually close). "Safe" = nearest enemy >350 HU away (~1s buffer).
             if not goalIsThrowOnly and not self.wantReload and self.throwState == nil and curTime > self.throwCooldown then
-                if blockersInPath >= 2 and distToGoal > 500 then
-                    local throwTarget = FindThrowTarget(self.ply, actualGoalPos)
-                    if throwTarget then
-                        -- 25% chance to actually attempt a pass when the criteria are met
-                        if math.random() < 0.25 then
-                            self.throwState = "winding"
-                            self.throwStart = curTime
-                            self.throwDuration = 0.5 + math.random() * 0.7
-                            self.throwTarget = throwTarget
-                            self.throwCooldown = curTime + 3.0
-
-                            local throwDir = (throwTarget:GetPos() - botPos)
-                            throwDir.z = 0
-                            if throwDir:LengthSqr() > 1 then
-                                self.targetYaw = throwDir:Angle().y
-                            end
-                        else
-                            -- 75% of the time, decide not to pass and put passing on a short cooldown
-                            self.throwCooldown = curTime + 1.5
+                local throwTarget = FindThrowTarget(self.ply, actualGoalPos)
+                if throwTarget and distToGoal > 400 then
+                    -- Nearest enemy distance as a safety gauge
+                    local nearestEnemyDist = math.huge
+                    for _, ply in ipairs(player.GetAll()) do
+                        if IsValid(ply) and ply:Alive() and ply:Team() ~= self.ply:Team() then
+                            nearestEnemyDist = math.min(nearestEnemyDist, botPos:Distance(ply:GetPos()))
                         end
+                    end
+
+                    -- Misjudgment: ~20% chance the bot misreads the distance (over- or under-estimates)
+                    local misjudge = math.random() < 0.20
+                    local perceivedDist = misjudge and (nearestEnemyDist * (0.5 + math.random())) or nearestEnemyDist
+
+                    local mateDistToGoal = throwTarget:GetPos():Distance(actualGoalPos)
+                    local hasOffensiveAdvantage = mateDistToGoal < distToGoal - 250
+
+                    -- Pass probability based on situation and perceived safety
+                    local passChance = 0
+                    if blockersInPath >= 2 then
+                        -- Pressure pass: cornered, need to unload
+                        passChance = perceivedDist > 200 and 0.45 or 0.20
+                    elseif hasOffensiveAdvantage and perceivedDist > 350 then
+                        -- Offensive read: open space, teammate has better angle
+                        passChance = 0.35
+                    elseif hasOffensiveAdvantage and perceivedDist > 200 then
+                        -- Marginal window — bots sometimes go for it anyway
+                        passChance = 0.15
+                    end
+
+                    if passChance > 0 and math.random() < passChance then
+                        self.throwState = "winding"
+                        self.throwStart = curTime
+                        self.throwDuration = 0.5 + math.random() * 0.7
+                        self.throwTarget = throwTarget
+                        self.throwCooldown = curTime + 3.0
+
+                        local throwDir = (throwTarget:GetPos() - botPos)
+                        throwDir.z = 0
+                        if throwDir:LengthSqr() > 1 then
+                            self.targetYaw = throwDir:Angle().y
+                        end
+                    else
+                        self.throwCooldown = curTime + 1.5
                     end
                 end
             end
@@ -1041,19 +1075,8 @@ function Bot:ExecuteState()
           end
 
     elseif self.state == 6 then -- STATE_CELEBRATE
-        -- VICTORY LAP + DANCE
-        if curTime < (self.celebrateStart or 0) + 1.0 then
-            -- Run 1s forward
-            targetPos = botPos + bot:GetForward() * 300
-        else
-            -- Stop and Dance
-            targetPos = botPos
-            if not self.didAct then
-                local acts = {"robot", "dance", "muscle", "laugh", "cheer", "zombie", "bow", "wave"}
-                self.ply:ConCommand("act " .. table.Random(acts))
-                self.didAct = true
-            end
-        end
+        -- Handled by the isIdle dance path (InRound=false → isIdle=true).
+        -- Nothing to do here; nextDanceTime was cleared by TriggerBotVictory.
     end
 
     -- Idle fallback

@@ -242,8 +242,14 @@ function GameManager:RoundStart()
     end
 
     -- Set absolute end time
-    SetGlobalFloat("RoundEndsAt", CurTime() + remainingTime)
+    local endsAt = CurTime() + remainingTime
+    SetGlobalFloat("RoundEndsAt", endsAt)
     SetGlobalFloat("RoundDuration", remainingTime)
+
+    -- Immediately push the end time to all clients via net message (bypasses SetGlobalFloat batching)
+    net.Start("eft_roundtimer")
+        net.WriteFloat(endsAt)
+    net.Broadcast()
 
     -- Sync Timer Loop
     timer.Create("GameManager_CheckRoundEnd", 0.1, 0, function()
@@ -282,6 +288,11 @@ function GameManager:RoundEnd()
         local remaining = math.max(0, roundEndsAt - CurTime())
         SetGlobalFloat("GameTimeRemaining", remaining)
     end
+
+    -- Tell clients the timer is frozen (0 = no active countdown)
+    net.Start("eft_roundtimer")
+        net.WriteFloat(0)
+    net.Broadcast()
 
     GAMEMODE:OnRoundEnd(self.RoundNumber)
     if GameEvents.RoundEnd then GameEvents.RoundEnd:Invoke(self.RoundNumber) end

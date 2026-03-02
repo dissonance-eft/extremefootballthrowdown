@@ -203,6 +203,8 @@ local function TriggerBotVictory(winner)
              bot.BotAI.didAct = false
              bot.BotAI.throwState = nil
              bot.BotAI.wantReload = false
+             -- Force immediate dance on the next Think tick (don't wait out a stale timer)
+             bot.BotAI.nextDanceTime = nil
         end
     end
 end

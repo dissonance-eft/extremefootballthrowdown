@@ -205,7 +205,7 @@ net.Receive("EFT_MapVoteStart", function()
         MapVote.CurrentMaps[i] = net.ReadString()
     end
 
-    MapVote.EndTime = CurTime() + net.ReadUInt(32)
+    MapVote.EndTime = net.ReadFloat() -- absolute server timestamp, already synced
 
     -- Re-scan backgrounds in case they were loaded late
     ScanBackgrounds()
@@ -269,9 +269,9 @@ function PANEL:Init()
     self:ParentToHUD()
     self:SetPos(0, 0)
     self:SetSize(ScrW(), ScrH())
-    self:MakePopup()
-    -- Allow keyboard input so Y/U chat keys still work during the vote screen
-    self:SetKeyboardInputEnabled(true)
+    -- Mouse only — never capture keyboard so chat (Y/U) and all other keys work normally
+    self:SetMouseInputEnabled(true)
+    self:SetKeyboardInputEnabled(false)
 
     self.mapButtons = {}
     self.winnerID = nil
@@ -295,15 +295,6 @@ end
 function PANEL:PerformLayout()
     self:SetSize(ScrW(), ScrH())
     self.closeBtn:SetPos(ScrW() - 44, 12)
-end
-
--- Forward chat keys so players can still chat during the map vote
-function PANEL:OnKeyCodePressed(code)
-    if code == KEY_Y then
-        chat.Open(0) -- 0 = all chat
-    elseif code == KEY_U then
-        chat.Open(1) -- 1 = team chat
-    end
 end
 
 function PANEL:SetMaps(maps)
@@ -378,16 +369,22 @@ function PANEL:SetMaps(maps)
         btn.thumbMat = thumbMat
 
         -- If no Material found, try the backgrounds/ folder via DImage
+        -- Stagger creation across frames to avoid a hitch on panel open
         btn.thumbImage = nil
         if not thumbMat then
             local bgPath = FindBackgroundForMap(mapName)
             if bgPath then
-                local img = vgui.Create("DImage", btn)
-                img:SetPos(cardPad, cardPad)
-                img:SetSize(thumbW, thumbH)
-                img:SetImage("../" .. bgPath)
-                img:SetMouseInputEnabled(false)
-                btn.thumbImage = img
+                local capturedBtn = btn
+                local capturedPath = bgPath
+                timer.Simple(i * 0.02, function()
+                    if not IsValid(capturedBtn) then return end
+                    local img = vgui.Create("DImage", capturedBtn)
+                    img:SetPos(cardPad, cardPad)
+                    img:SetSize(thumbW, thumbH)
+                    img:SetImage("../" .. capturedPath)
+                    img:SetMouseInputEnabled(false)
+                    capturedBtn.thumbImage = img
+                end)
             end
         end
 
@@ -612,15 +609,3 @@ end
 
 derma.DefineControl("EFT_MapVoteScreen", "EFT Map Vote Screen", PANEL, "DPanel")
 
--- Yield keyboard focus to chat when the player opens it, restore when done.
--- Without this, MakePopup() on the vote panel swallows all keystrokes.
-hook.Add("StartChat", "EFT_MapVoteChatYield", function()
-    if IsValid(MapVote.Panel) and MapVote.Panel:IsVisible() then
-        MapVote.Panel:SetKeyboardInputEnabled(false)
-    end
-end)
-hook.Add("FinishChat", "EFT_MapVoteChatRestore", function()
-    if IsValid(MapVote.Panel) and MapVote.Panel:IsVisible() then
-        MapVote.Panel:SetKeyboardInputEnabled(true)
-    end
-end)
