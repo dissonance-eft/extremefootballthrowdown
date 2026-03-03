@@ -16,6 +16,9 @@ if not SERVER then return end
 --   Collect the .nav files from garrysmod/maps/ and commit to git.
 -- ============================================================================
 
+-- Register convar so +eft_nav_batch 1 launch arg is readable via GetConVar()
+CreateConVar("eft_nav_batch", "0", FCVAR_NONE, "Set to 1 to auto-cycle all EFT maps and generate nav meshes, then quit.")
+
 local NAV_GEN_DELAY   = 3    -- Seconds after map load before generating
 local SPAWN_SNAP_DIST = 500  -- Max downward trace for spawn snapping
 local POLL_INTERVAL   = 5    -- Seconds between "is nav done?" checks (batch)
