@@ -65,12 +65,10 @@ include("server/sv_downloads.lua")       -- FastDL resource list
 include("lib/promise.lua")
 include("lib/class.lua")
 include("lib/event.lua")
-AddCSLuaFile("lib/d3bot/azlib.lua")
-AddCSLuaFile("lib/d3bot/d3bot_init.lua")
-include("lib/d3bot/d3bot_init.lua") -- D3bot navigation engine (node graph + A* + editor)
 include("obj_bot.lua") -- Define Bot class BEFORE sv_bots.lua uses it!
 include("sv_bot_pathfinding.lua")
-include("sv_bots.lua") 
+include("server/sv_nav.lua")  -- Auto nav_generate with spawn-snap fix
+include("sv_bots.lua")
 include("obj_ball.lua")
 include("obj_player.lua")
 include("obj_network.lua")

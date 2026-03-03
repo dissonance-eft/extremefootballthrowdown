@@ -7,8 +7,6 @@ include("shared.lua")
 include("lib/class.lua")
 include("lib/promise.lua")
 include("lib/event.lua")
-include("lib/d3bot/d3bot_init.lua") -- D3bot navmesh editor (client-side UI)
-
 -- Manifest Tools
 include("cl_manifest_debug.lua")
 include("obj_player.lua")
