@@ -46,6 +46,19 @@ end
 local function RunNavGenerate()
 	local n = SnapSpawnsToGround()
 	if n > 0 then print("[EFT Nav] Snapped " .. n .. " spawn(s) to ground") end
+
+	-- Seed from connected players as fallback (handles maps with no spawn entities)
+	game.ConsoleCommand("sv_cheats 1\n")
+	for _, pl in ipairs(player.GetAll()) do
+		if IsValid(pl) and pl:Alive() then
+			-- Teleport a temporary prop to player pos isn't possible, but we can
+			-- mark walkable from the server's perspective via the host player
+			game.ConsoleCommand("nav_mark_walkable\n")
+			print("[EFT Nav] Seeded walkable from player " .. pl:Nick())
+			break -- one seed is enough to get the flood fill started
+		end
+	end
+
 	game.ConsoleCommand("nav_generate\n")
 	print("[EFT Nav] nav_generate running for " .. game.GetMap())
 end
