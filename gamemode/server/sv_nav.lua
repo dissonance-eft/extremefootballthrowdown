@@ -50,16 +50,7 @@ local function RunNavGenerate()
 	print("[EFT Nav] nav_generate running for " .. game.GetMap())
 end
 
--- Manual trigger: type eft_nav_generate in console on any loaded map
+-- Type eft_nav_generate in console on any loaded map
 concommand.Add("eft_nav_generate", function()
 	RunNavGenerate()
-end)
-
--- Auto-generate on map load if no .nav exists (server fallback)
-hook.Add("InitPostEntity", "EFTAutoNavGenerate", function()
-	if navmesh.IsLoaded() then return end
-	print("[EFT Nav] No nav mesh for " .. game.GetMap() .. " — generating in " .. NAV_GEN_DELAY .. "s...")
-	timer.Simple(NAV_GEN_DELAY, function()
-		RunNavGenerate()
-	end)
 end)
