@@ -1268,10 +1268,7 @@ Sky Metal (16), Mini Putt (12), Slam Dunk (10), Space Jump (10) = heavy vertical
 **Ball reset brush count reflects hazard density:**
 Temple Sacrifice (11), Space Jump (8), Baseball Dash (7) = many hazard spots.
 
-**Scoring archetype determines match pace:**
-- **Swarm maps** (Soccer, Bloodbowl, Lake Parima): Open goal approach, large or forgiving scoring zone. Sustained density near the goal is sufficient to score. High goal rates (~8–13/match observed).
-- **Precision maps** (Slam Dunk, Temple Sacrifice): Narrow scoring window or elevated goal requiring a specific angle or committed throw. Few accidental scores. Low goal rates (~2–4/match observed).
-- Bot AI should behave differently per archetype: swarm maps reward pure density pressure near goal; precision maps require a designated scorer holding the scoring angle while teammates clear defenders.
+**Map playstyle affects scoring pace.** All maps require swarming to some extent — the distinction is degree and scoring method. Some maps (Soccer, Bloodbowl, Lake Parima) are pure swarm: open goal approach, large scoring zone, passing used only to advance ball position rather than to score directly. High goal rates (~8–13/match observed). Others (Slam Dunk, Temple Sacrifice) require a precise angle or committed throw to score; swarming clears defenders but a specific scoring approach is still needed. Low goal rates (~2–4/match observed). Bot AI should account for this: density pressure near goal is always the foundation, but on precision-scoring maps a scorer must hold the correct angle while teammates clear.
 
 ### Map Geometry as Tactical Space
 
