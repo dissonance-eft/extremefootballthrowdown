@@ -146,8 +146,20 @@ end
 -- Main hook
 -- ============================================================================
 
+-- ============================================================================
+-- Console command: trigger batch mode from inside a running local game
+-- Usage: start any EFT map locally, open console, type: eft_nav_batch_start
+-- ============================================================================
+concommand.Add("eft_nav_batch_start", function()
+	RunConsoleCommand("eft_nav_batch", "1")
+	print("[EFT Nav] Batch mode enabled — cycling to first map...")
+	timer.Simple(0.5, function()
+		game.ConsoleCommand("changelevel " .. BATCH_MAPS[1] .. "\n")
+	end)
+end)
+
 hook.Add("InitPostEntity", "EFTAutoNavGenerate", function()
-	local isBatch   = GetConVar("eft_nav_batch") and GetConVar("eft_nav_batch"):GetBool()
+	local isBatch   = GetConVarNumber("eft_nav_batch") > 0
 	local mapName   = game.GetMap()
 	local navLoaded = navmesh.IsLoaded()
 

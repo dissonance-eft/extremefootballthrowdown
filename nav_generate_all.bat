@@ -2,39 +2,40 @@
 :: ============================================================
 :: EFT - Batch Nav Generation
 :: ============================================================
-:: Launches GMod locally, auto-cycles all 23 EFT maps,
-:: generates a .nav file for each, then quits.
+:: OPTION A (recommended): Use this bat to launch GMod, then
+:: type "eft_nav_batch_start" in the console when the map loads.
 ::
-:: When done, collect nav files from:
+:: OPTION B: This bat also tries to pass +eft_nav_batch 1 as a
+:: launch arg automatically (may not work on all setups).
+::
+:: When done, GMod quits and nav files are at:
 ::   garrysmod\maps\eft_*.nav
-::
-:: Commit them to git and include in the workshop GMA.
 :: ============================================================
 
-set GMOD="C:\Program Files (x86)\Steam\steamapps\common\GarrysMod\gmod.exe"
-set ARGS=-console -sv_lan 1 +maxplayers 1 +gamemode extremefootballthrowdown +eft_nav_batch 1 +map eft_slamdunk_v6
+set STEAM="C:\Program Files (x86)\Steam\steam.exe"
 
-if not exist %GMOD% (
-    echo ERROR: gmod.exe not found at %GMOD%
-    echo Edit this .bat and fix the path.
+if not exist %STEAM% (
+    echo ERROR: steam.exe not found at %STEAM%
+    echo Edit this .bat and fix the STEAM path.
     pause
     exit /b 1
 )
 
-echo Starting GMod batch nav generation...
-echo Watch the console for [EFT Nav] progress messages.
-echo GMod will quit automatically when all 23 maps are done.
+echo Launching GMod via Steam with batch nav args...
+echo.
+echo If batch mode does NOT start automatically:
+echo   1. Wait for the map to load
+echo   2. Open console (~ key)
+echo   3. Type: eft_nav_batch_start
+echo   4. Press Enter — GMod will cycle all maps and quit when done
 echo.
 echo Nav files will be saved to:
-echo   C:\Program Files (x86)\Steam\steamapps\common\GarrysMod\garrysmod\maps\eft_*.nav
-echo.
-
-%GMOD% %ARGS%
-
-echo.
-echo ============================================================
-echo Done! Collect your nav files from:
 echo   garrysmod\maps\eft_*.nav
-echo Then: git add maps\eft_*.nav and repack the workshop GMA.
-echo ============================================================
+echo.
+
+%STEAM% -applaunch 4000 -console +sv_lan 1 +maxplayers 1 +gamemode extremefootballthrowdown +eft_nav_batch 1 +map eft_baseballdash_v3
+
+echo.
+echo Steam launched GMod. Watch the game console for [EFT Nav] messages.
+echo GMod will quit automatically when all maps are done.
 pause
