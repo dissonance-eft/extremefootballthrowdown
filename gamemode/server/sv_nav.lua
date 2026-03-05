@@ -33,7 +33,6 @@ local BATCH_MAPS = {
 	"eft_chamber_v3",
 	"eft_cosmic_arena_v2",
 	"eft_countdown_v4",
-	"eft_gauntlet_v1",
 	"eft_handegg_r2",
 	"eft_lake_parima_v2",
 	"eft_legoland_v2",

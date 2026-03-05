@@ -11,7 +11,6 @@ local maps = {
     "maps/eft_chamber_v3.bsp",
     "maps/eft_cosmic_arena_v2.bsp",
     "maps/eft_countdown_v4.bsp",
-    "maps/eft_gauntlet_v1.bsp",
     "maps/eft_handegg_r2.bsp",
     "maps/eft_lake_parima_v2.bsp",
     "maps/eft_legoland_v2.bsp",

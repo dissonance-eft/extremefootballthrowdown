@@ -432,7 +432,6 @@ function PANEL:SetMaps(maps)
                 ["eft_chamber_v3"] = "Chamber",
                 ["eft_cosmic_arena_v2"] = "Cosmic Arena",
                 ["eft_countdown_v4"] = "Countdown",
-                ["eft_gauntlet_v1"] = "Gauntlet",
                 ["eft_handegg_r2"] = "Handegg",
                 ["eft_lake_parima_v2"] = "Lake Parima",
                 ["eft_legoland_v2"] = "Legoland",
