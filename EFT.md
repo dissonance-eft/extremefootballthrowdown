@@ -8,7 +8,7 @@
 *   **Auto-pickup:** The ball attaches instantly to anyone who touches it. No key, no delay, no confirmation animation. New players are frequently surprised by sudden turnovers caused by running into a loose ball. "Oh shit I have it" moments create instant retargeting and maintain pace. This is intentional — it fuels rapid offense/defense flips and keeps every scramble contested.
 *   **Passing is high-risk, high-reward.** A ~1s windup leaves the carrier completely stationary and exposed. Passes are most effective when chaos gives a second of breathing room. Bounced or contested catches are the norm, not clean transfers.
 *   **Tackles are first-class outcomes.** A tackle that strips the ball from a breakaway carrier is as game-changing as a goal. The scoreboard tracks both. Tackling is not only about taking the ball — it is about disqualifying opponents from the next interaction cycle.
-*   **The real resource is upright participation.** The key resource in EFT is not territory or spacing — it is how many upright, charging players are near the next possession change. Knockdowns, swimming, wall hits, and respawns don't deal damage; they remove participation. "Creating space" means reducing the number of upright opponents who can contest the next 1-2 seconds.
+*   **The real resource is upright participation.** The key resource in EFT is not territory — it is how many upright, charging players are near the next possession change. Knockdowns and being knocked off the map or into a hazard (voids, spike pits, lava) remove participation. "Creating space" means reducing the number of upright opponents near the carrier who can contest the next 1-2 seconds.
 *   **The central skill.** A good EFT player is not the one who controls the ball longest. A good EFT player is the one who is correctly positioned at the highest number of state transitions. This explains why head-ons mattered, why scrums mattered, why passing was rare but decisive, and why new players chased the carrier while good players anticipated the collapse.
 *   **Inviolable Warning:** **If a change makes the game cleaner but reduces tension, contested interactions, or reversals, the change is WRONG even if technically sound.** Visual polish must never weaken interaction properties. "Cleaner" behavior that reduces possession volatility or interaction density breaks the sport.
 *   **Contract:** This document is both the "soul" of the game and the strict implementation contract. Code must serve this manifest. The Lua code is a reference implementation; the manifest is the behavioral specification.
@@ -119,6 +119,8 @@ Respawns and resets return players into the same ongoing play. Elimination is a 
 ### C-011 Transition Dominance <!-- id: C-011 -->
 The most important events in EFT are transitions, not stable states. Tackle → fumble → instant pickup → immediate new target. Stable carry is not the core — possession change is the core. Impact is often shaping *who receives the ball next*, not being the one who holds it longest. Some players are primarily tacklers/clearers whose value is controlling transitions and disqualifying opponents, not carrying. EFT is skill-expressive but not skill-exclusive: good players influence outcomes more reliably, but low-skill players still matter because simply moving and colliding adds pressure to the swarm.
 
+**Tackle taxonomy:** Tackles serve two distinct functions. A **possession tackle** hits the carrier — the ball drops or shoots forward and is picked up ~0.5s later; in logs this appears as `tackle_success` followed by a delayed `possession_gain`, making the link look decoupled. A **clearance tackle** hits a non-carrier — no possession transfer, but an upright contester is removed, creating running room for the carrier and time to complete a throw (which requires a full stop and restart from 0 speed). Roughly 2 out of 3 tackles in live play are clearance tackles. They are not failed possession attempts — they are the primary mechanism by which carriers get scoring windows.
+
 ---
 
 ## PART I -- INVARIANTS (Non-Negotiable Rules)
@@ -148,6 +150,7 @@ Skill is rewarded for **anticipating future interactions/positions**, not just r
 
 ### 6. Head-On Collisions <!-- id: P-060 -->
 Head-on collisions are decided by **instantaneous velocity at impact**. Even tiny speed differences (0.1 HU/s) matter. Head-ons are the primary visible mechanical skill test in EFT.
+*   **Conceptual vs. Logged:** "Head-on" as a concept covers any frontal collision between two charging players. The logged `head_on` event fires only on matched-speed collisions (<24 HU/s difference) that trigger a power struggle (mutual knockback). Frontal collisions where one player clearly outpaces the other resolve as `tackle_success` and are far more common — the matched-speed variant is the rarer, more dramatic form.
 *   **Momentum Influence:** Player-controlled momentum immediately before impact must influence tackle outcomes in a readable, learnable way. Source movement quirks allow smooth turning to add slight speed above baseline (~350 → ~356-358 HU/s). Winning by 358 vs 357 feels "earned" because the player generated the advantage through movement execution.
 *   **Skill Expression:** This preserves the manual skill of "curving" or "strafing" into a hit to maximize velocity. To inexperienced players head-ons can feel random; to experienced players they are highly consistent and historically used as a major skill ranking signal in the community.
 *   **Preservation:** Small player-controlled velocity variance must meaningfully affect head-on outcomes. If head-ons become symmetric/normalized, a major skill layer and social hierarchy signal disappears.
@@ -172,8 +175,9 @@ The ball is a **focal point for interaction**, not a chaos generator.
 
 ### 9. Hazards, Death, and Reset Migration <!-- id: P-090 -->
 *   **Hazards are Population Control:** Voids/death zones are not "punishment flavor" — they regulate engagement density by removing participation. Removing even one player for several seconds strongly changes scoring probability because pressure reform depends on nearby upright participants.
-*   **Water:** Does not kill. Makes you swim (effectively irrelevant). Prevents meaningful contest until you return to playable area. Triggers ball reset (center).
-*   **Voids/Pits/Lava:** Triggers ball reset. Kills and forces respawn potentially far from the ball. Can create 10+ second absence from engagement.
+*   **Water:** Does not kill. Player floats helplessly until returning to playable surface. Ball always resets to spawn on contact with any water material.
+*   **Voids/Pits/Spike Pits:** Instantly kills, triggers ball reset, forces respawn potentially far from engagement. Can create 10+ second absence.
+*   **Lava:** Retextured water with a trigger_hurt underneath. Ball resets on water contact (same as water); trigger_hurt kills the player. Visually lethal, mechanically water + death zone.
 *   **Ball Resets tied to hazards are intentional:** They rapidly re-center the fight at a predictable convergence point. Reset is not downtime — reset is forced re-scrum.
 *   **Resets:** Players may *intentionally* reset the ball (e.g., throwing into void) to relocate the contest, especially to avoid conceding near their own goal.
 *   **Respawn Participation:** Respawn timing must allow players to re-enter an active play rather than only the next play. The game relies on overlapping participation.
@@ -1263,6 +1267,11 @@ Sky Metal (16), Mini Putt (12), Slam Dunk (10), Space Jump (10) = heavy vertical
 
 **Ball reset brush count reflects hazard density:**
 Temple Sacrifice (11), Space Jump (8), Baseball Dash (7) = many hazard spots.
+
+**Scoring archetype determines match pace:**
+- **Swarm maps** (Soccer, Bloodbowl, Lake Parima): Open goal approach, large or forgiving scoring zone. Sustained density near the goal is sufficient to score. High goal rates (~8–13/match observed).
+- **Precision maps** (Slam Dunk, Temple Sacrifice): Narrow scoring window or elevated goal requiring a specific angle or committed throw. Few accidental scores. Low goal rates (~2–4/match observed).
+- Bot AI should behave differently per archetype: swarm maps reward pure density pressure near goal; precision maps require a designated scorer holding the scoring angle while teammates clear defenders.
 
 ### Map Geometry as Tactical Space
 
@@ -2633,6 +2642,8 @@ These real-world systems share EFT's structural signature (P0_STATE_LOCAL + CONT
 | Head-ons/match | ~17 | B1 contest frequency |
 | Goals/match | ~7 | Scoring stability |
 | Avg possession duration | Not yet measured | Requires updated recorder (now implemented) |
+
+> 📊 Human+bot data (12 matches, Feb–Mar 2026): avg possessions/match 257, tackles/match 785, tackle/possession ratio **3.05x**, goals/match **6.4**, throw catch rate **~35%**, logged head-ons/match ~10 (matched-speed only — true frontal collisions higher). Avg match duration ~16.6 min.
 
 **Key ratio — tackle/possession (~3x):** This is the "basin depth" of EFT. Each possession requires ~3 tackle attempts to dislodge — a healthy contested value. If this drops below ~1.5x, possession becomes trivially stealable (too shallow basin). If it rises above ~5x, possession becomes uncontestable (too deep basin).
 
