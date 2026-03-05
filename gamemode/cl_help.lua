@@ -1,6 +1,8 @@
--- F1 opens team selocal PANEL = {}
 /// MANIFEST LINKS:
-/// Principles: P-010 (Sport Identity - UI), C-009 (Status Info)(swapped from F2)
+/// Principles: P-010 (Sport Identity - UI), C-009 (Status Info)
+
+-- F1: Controls / MOTD screen
+-- TODO: fill in controls layout and server MOTD content
 function GM:ShowHelp()
-	GAMEMODE:ShowTeam()
+	-- placeholder: no-op until controls panel is implemented
 end

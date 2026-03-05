@@ -732,12 +732,13 @@ function GM:PlayerDisconnected( pl )
 end  
 
 function GM:ShowHelp( pl )
-	-- F1 now opens team select (swapped from F2)
-	pl:SendLua( "GAMEMODE:ShowTeam()" )
+	-- F1: controls / MOTD screen (placeholder — fill in later)
+	pl:SendLua( "GAMEMODE:ShowHelp()" )
 end
 
 function GM:ShowTeam( pl )
-	-- F2 disabled, use F1 instead
+	-- F2: team select (original EFT behaviour)
+	pl:SendLua( "GAMEMODE:ShowTeam()" )
 end
 
 
