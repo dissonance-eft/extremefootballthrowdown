@@ -437,7 +437,6 @@ function PANEL:SetMaps(maps)
                 ["eft_legoland_v2"] = "Legoland",
                 ["eft_minecraft_v4"] = "Minecraft",
                 ["eft_miniputt_v1r"] = "Mini Putt",
-                ["eft_oasis_v4"] = "Oasis",
                 ["eft_sky_metal_v2"] = "Sky Metal",
                 ["eft_skyline_v2"] = "Skyline",
                 ["eft_skystep_v4"] = "Skystep",

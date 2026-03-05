@@ -16,7 +16,6 @@ local maps = {
     "maps/eft_legoland_v2.bsp",
     "maps/eft_minecraft_v4.bsp",
     "maps/eft_miniputt_v1r.bsp",
-    "maps/eft_oasis_v4.bsp",
     "maps/eft_sky_metal_v2.bsp",
     "maps/eft_skyline_v2.bsp",
     "maps/eft_skystep_v4.bsp",

@@ -29,7 +29,6 @@ Desktop.ini
 /tests/
 tools/
 manifest/
-MANIFEST.md
 docs/
 deploy/
 lua/tests/
