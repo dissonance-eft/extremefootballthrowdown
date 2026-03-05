@@ -178,10 +178,6 @@ end
 ---------------------------------------------------------*/
 function GM:ChangeObserverMode( pl, mode )
 
-	if ( pl:GetInfoNum( "cl_spec_mode", 0) != mode ) then
-		pl:ConCommand( "cl_spec_mode "..mode )
-	end
-
 	if ( mode == OBS_MODE_IN_EYE || mode == OBS_MODE_CHASE ) then
 		GAMEMODE:StartEntitySpectate( pl, mode )
 	end
