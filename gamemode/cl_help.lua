@@ -194,7 +194,7 @@ function GM:ShowHelp()
 		{ text = "Punch opponents to knock them down and force a fumble." },
 		{ text = "A knocked-down carrier drops the ball — either team can grab it." },
 		{ text = "The ball resets to centre after each goal." },
-		{ text = "First team to the score limit wins." },
+		{ text = "First to 10 goals wins, or highest score after 15 minutes." },
 		{ sep = true },
 		{ header = "KNOWN ISSUES" },
 		{ text = "Bots currently have navigation issues on some maps — this is being fixed." },
