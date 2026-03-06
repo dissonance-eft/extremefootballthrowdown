@@ -92,7 +92,7 @@ function STATE:Think(pl)
 	if not (pl:IsOnGround() and pl:WaterLevel() < 2) then
 		pl:EndState(true)
 	elseif CurTime() >= pl:GetStateEnd() then
-		pl:EndState(true)
+		pl:EndState()
 	end
 end
 

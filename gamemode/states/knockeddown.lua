@@ -33,8 +33,6 @@ end
 
 function STATE:Ended(pl, newstate)
 	if SERVER then
-		pl.HighJumping = nil
-
 		local rag = pl:GetRagdollEntity()
 		if rag and rag:IsValid() then
 			rag:Remove()
@@ -74,7 +72,7 @@ function STATE:IsIdle(pl)
 end
 
 function STATE:CanPickup(pl, ent)
-	return pl.HighJumping
+	return false
 end
 
 function STATE:Move(pl, move)

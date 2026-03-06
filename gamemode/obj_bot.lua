@@ -359,11 +359,10 @@ end
 ---@param maxDetour number Maximum perpendicular detour distance to consider a pad
 ---@return Vector? padCenter Center of the best jump pad, or nil
 local function FindBestJumpPad(botPos, goalPos, maxDetour)
-    local toGoal = goalPos - botPos
-    local toGoalDir = toGoal:GetNormalized()
-    local goalDist = toGoal:Length2D()
+    local toGoalDir = (goalPos - botPos):GetNormalized()
+    local goalDist  = botPos:Distance(goalPos)
 
-    local bestPad = nil
+    local bestPad   = nil
     local bestScore = 0
 
     local candidates = {}
@@ -371,28 +370,116 @@ local function FindBestJumpPad(botPos, goalPos, maxDetour)
     table.Add(candidates, ents.FindByClass("trigger_jumppad"))
 
     for _, ent in ipairs(candidates) do
-        if IsValid(ent) and ent:GetEnabled() and ent:GetPushPlayers() then
-            local padPos = ent:LocalToWorld(ent:OBBCenter())
-            local toPad = padPos - botPos
-            local proj = toGoalDir:Dot(toPad) -- How far along our path this pad is
+        if not (IsValid(ent) and ent:GetEnabled() and ent:GetPushPlayers()) then continue end
 
-            -- Pad must be ahead of us (proj > 0) and not past the goal
-            if proj > 100 and proj < goalDist * 0.8 then
-                local perpDist = (toPad - toGoalDir * proj):Length2D()
-                if perpDist < maxDetour then
-                    -- Score: prefer pads that are more on-path (low perp) and reasonably ahead
-                    local score = (1 - perpDist / maxDetour) * (proj / goalDist)
-                    if score > bestScore then
-                        bestScore = score
-                        bestPad = padPos
-                    end
-                end
+        local padPos  = ent:LocalToWorld(ent:OBBCenter())
+        local toPad   = padPos - botPos
+        local padDist = toPad:Length2D()
+
+        -- Pad must be reachable and not already past the goal
+        if padDist < 50 or padDist > goalDist then continue end
+
+        -- Must be within maxDetour lateral of our path to goal
+        local proj     = toGoalDir:Dot(toPad)
+        local perpDist = (toPad - toGoalDir * proj):Length2D()
+        if perpDist >= maxDetour then continue end
+
+        -- Read the pad's launch velocity to estimate where it sends us
+        local pushVel = ent:GetPushVelocity()
+        if not isvector(pushVel) or pushVel:LengthSqr() < 1 then continue end
+
+        -- Radial pads push away from their origin — compute direction from pad to bot
+        if ent:GetPushFromOrigin() then
+            local radDir = (botPos - padPos)
+            radDir.z = 0
+            if radDir:LengthSqr() > 1 then
+                radDir:Normalize()
+                pushVel = radDir * pushVel:Length2D() + Vector(0, 0, pushVel.z)
             end
+        end
+
+        -- Simplified projectile: horizontal travel during vertical flight arc
+        -- tFlight = 2*vz/g for upward launches (Source default gravity ≈ 600 HU/s²)
+        local tFlight   = (pushVel.z > 0) and (2 * pushVel.z / 600) or 0.3
+        local landingPos = padPos + Vector(pushVel.x * tFlight, pushVel.y * tFlight, 0)
+        local landingDist = landingPos:Distance(goalPos)
+
+        -- Skip pads that make the total trip significantly longer than going direct.
+        -- Jump pads are directional shortcuts (like ziplines), not always goal-scoring;
+        -- the user confirmed they just add speed/direction, so landing closer is optional.
+        local tripDist = padDist + landingDist
+        if tripDist > goalDist * 1.25 then continue end
+
+        -- Score: on-path proximity + path savings
+        local pathSaving = math.max(0, (goalDist - tripDist) / goalDist)
+        local score = (1 - perpDist / maxDetour) * 0.6 + pathSaving * 0.4
+        if score > bestScore then
+            bestScore = score
+            bestPad   = padPos
         end
     end
 
     return bestPad
 end
+
+--- Find the nearest active trigger_powerup that lies within maxDetour of the straight
+--- path from botPos to goalPos. Only called when the bot is carrying the ball.
+--- Returns the powerup's world-center position, or nil if none qualifies.
+local function FindNearbyPowerup(bot, botPos, goalPos, maxDetour)
+    local ball = GAMEMODE:GetBall()
+    if not IsValid(ball) then return nil end
+    if ball:GetCarrier() ~= bot then return nil end
+    if ball:GetState() ~= BALL_STATE_NONE then return nil end -- already has powerup
+
+    local toGoalDir = (goalPos - botPos):GetNormalized()
+    local goalDist  = botPos:Distance(goalPos)
+
+    local bestPos, bestPerpDist = nil, maxDetour
+
+    for _, ent in ipairs(ents.FindByClass("trigger_powerup")) do
+        if not (IsValid(ent) and ent:GetEnabled()) then continue end
+
+        local puPos  = ent:LocalToWorld(ent:OBBCenter())
+        local toPU   = puPos - botPos
+        local proj   = toGoalDir:Dot(toPU)
+        if proj < 0 or proj > goalDist then continue end -- behind us or past goal
+
+        local perpDist = (toPU - toGoalDir * proj):Length2D()
+        if perpDist < bestPerpDist then
+            bestPerpDist = perpDist
+            bestPos      = puPos
+        end
+    end
+
+    return bestPos
+end
+
+-- ============================================================================
+-- JUMP PAD CACHE
+-- ============================================================================
+-- Built once per map from trigger_abspush / trigger_jumppad entity data.
+-- Bots use this in MoveTo for passive pad awareness: if a pad lies on the
+-- natural path to the waypoint, steer through it without an explicit detour.
+
+local JumpPadCache = nil
+
+local function GetJumpPads()
+    if JumpPadCache then return JumpPadCache end
+    JumpPadCache = {}
+    for _, ent in pairs(ents.FindByClass("trigger_abspush")) do
+        if IsValid(ent) and ent:GetEnabled() and ent:GetPushPlayers() then
+            table.insert(JumpPadCache, ent:LocalToWorld(ent:OBBCenter()))
+        end
+    end
+    for _, ent in pairs(ents.FindByClass("trigger_jumppad")) do
+        if IsValid(ent) and ent:GetEnabled() and ent:GetPushPlayers() then
+            table.insert(JumpPadCache, ent:LocalToWorld(ent:OBBCenter()))
+        end
+    end
+    return JumpPadCache
+end
+
+hook.Add("InitPostEntity", "EFTClearPadCache", function() JumpPadCache = nil end)
 
 -- ============================================================================
 -- BOT CLASS METHODS
@@ -775,6 +862,30 @@ function Bot:ExecuteState()
                 end
             end
 
+            -- === ADVANCING PASS (non-throw-only maps, open enemy half) ===
+            -- When in the enemy half with no defenders nearby, launch a field-advancement
+            -- throw at ~45° elevation ("4th bar" angle) for solid bounces. Not a goal shot —
+            -- power and angle vary slightly to simulate a human throwing down the field.
+            if not goalIsThrowOnly and self.throwState == nil and curTime > self.throwCooldown then
+                local halfDist = attackGoalPos and defenseGoalPos and attackGoalPos:Distance(defenseGoalPos) or 0
+                local inEnemyHalf = halfDist > 0 and distToGoal < halfDist * 0.5
+                if inEnemyHalf and distToGoal > 500 and not IsValid(nearestEnemy) then
+                    if curTime > (self.advanceCheckCooldown or 0) then
+                        self.advanceCheckCooldown = curTime + 1.2
+                        if math.random() < 0.4 then
+                            self.throwState    = "advance"
+                            self.throwStart    = curTime
+                            self.throwDuration = 0.8 + math.random() * 0.2  -- randomize .8–1.0
+                            self.throwTarget   = nil
+                            self.throwCooldown = curTime + 3.5
+                            local toGoal2D = (actualGoalPos - botPos); toGoal2D.z = 0
+                            self.targetYaw   = toGoal2D:Angle().y + math.Rand(-6, 6)
+                            self.targetPitch = -45 + math.Rand(-8, 8)  -- ~4th-bar: solid bounce arc
+                        end
+                    end
+                end
+            end
+
             -- === REACTIVE JUKE: Dodge enemy directly ahead ===
             if IsValid(nearestEnemy) and nearEnemyDist < 250 and not self.throwState then
                 local toEnemy = (nearestEnemy:GetPos() - botPos)
@@ -799,11 +910,25 @@ function Bot:ExecuteState()
                  self.wantReload = false
             end
 
+            -- Don't detour for pads or powerups when already in throw-positioning mode;
+            -- that would pull the bot away from its firing position and break goal shots.
+            local skipDetours = goalIsThrowOnly and distToGoal <= Bot.THROW_RANGE_MAX
+
             -- === JUMP PAD ROUTING ===
-            if not self.throwState and blockersInPath >= 1 and distToGoal > 500 and bot:OnGround() then
+            if not skipDetours and not self.throwState and blockersInPath >= 1 and distToGoal > 500 and bot:OnGround() then
                 local padPos = FindBestJumpPad(botPos, actualGoalPos, 400)
                 if padPos and botPos:Distance(padPos) < 600 then
                     targetPos = padPos
+                end
+            end
+
+            -- === POWERUP ROUTING ===
+            -- If carrying the ball without an active powerup, detour through any trigger_powerup
+            -- that lies within 400 HU of the straight path to goal.
+            if not skipDetours and not self.throwState and distToGoal > 400 then
+                local puPos = FindNearbyPowerup(bot, botPos, actualGoalPos, 400)
+                if puPos then
+                    targetPos = puPos
                 end
             end
 
@@ -861,19 +986,25 @@ function Bot:ExecuteState()
                     local perceivedDist = misjudge and (nearestEnemyDist * (0.5 + math.random())) or nearestEnemyDist
 
                     local mateDistToGoal = throwTarget:GetPos():Distance(actualGoalPos)
-                    local hasOffensiveAdvantage = mateDistToGoal < distToGoal - 250
+                    -- Teammate only needs to be 150 HU closer (was 250) so open-field
+                    -- passes to a slightly-ahead teammate aren't silently filtered out.
+                    local hasOffensiveAdvantage = mateDistToGoal < distToGoal - 150
 
-                    -- Pass probability based on situation and perceived safety
+                    -- Pass probability based on situation and perceived safety.
+                    -- Three clearance tiers so bots act decisively in open space.
                     local passChance = 0
                     if blockersInPath >= 2 then
                         -- Pressure pass: cornered, need to unload
-                        passChance = perceivedDist > 200 and 0.45 or 0.20
+                        passChance = perceivedDist > 200 and 0.50 or 0.20
+                    elseif hasOffensiveAdvantage and perceivedDist > 600 then
+                        -- Full clearance: no one nearby — take the easy pass
+                        passChance = 0.70
                     elseif hasOffensiveAdvantage and perceivedDist > 350 then
-                        -- Offensive read: open space, teammate has better angle
-                        passChance = 0.35
+                        -- Good window: safe distance, teammate has better angle
+                        passChance = 0.50
                     elseif hasOffensiveAdvantage and perceivedDist > 200 then
                         -- Marginal window — bots sometimes go for it anyway
-                        passChance = 0.15
+                        passChance = 0.22
                     end
 
                     if passChance > 0 and math.random() < passChance then
@@ -895,14 +1026,15 @@ function Bot:ExecuteState()
             end
 
             -- === THROW EXECUTION (all throw types) ===
-            if self.throwState == "winding" or self.throwState == "hailmary" or self.throwState == "goalshot" then
+            if self.throwState == "winding" or self.throwState == "hailmary" or self.throwState == "goalshot" or self.throwState == "advance" then
                 -- Stop moving during throw (throw.lua freezes player movement)
                 if self.throwState == "hailmary" then
                     targetPos = botPos
                     self.targetPitch = -75
                 elseif self.throwState == "goalshot" then
-                    targetPos = botPos -- Stand still while aiming at goal
-                    -- targetPitch already set by CalcThrowPitch above
+                    targetPos = botPos -- Stand still while aiming; targetPitch set by CalcThrowPitch
+                elseif self.throwState == "advance" then
+                    targetPos = botPos -- Stand still; targetPitch is fixed ~45° arc set at throw init
                 end
 
                 -- Play throw sound
@@ -1053,21 +1185,35 @@ function Bot:ExecuteState()
                  end
 
                  if not breaking then
-                 -- Aggressive Escort: Run AHEAD of the carrier to block/clear path
-                 -- Or run to the side if close to goal to offer a pass option
-                 
+                 -- Escort: 4-slot formation so bots spread out and approach from
+                 -- genuinely different angles instead of stacking on two sides.
+                 -- Slot is stable per-bot (entity index mod 4) so each bot
+                 -- consistently owns a lane, but after a knockdown they'll
+                 -- naturally re-converge from whichever direction they land.
+                 --   slot 0: wide left,  medium ahead
+                 --   slot 1: wide right, medium ahead
+                 --   slot 2: narrow left,  further back (trail blocker)
+                 --   slot 3: narrow right, further back (trail blocker)
+                 local sideDir = Vector(-carrierDir.y, carrierDir.x, 0):GetNormalized()
+                 local slot    = bot:EntIndex() % 4
+
                  local goalDist = carrierPos:Distance(attackGoalPos or vector_origin)
-                 
+
+                 local fwdOff, latOff
                  if goalDist < 500 then
-                     -- Offer pass option near goal (flank)
-                     local flankAngle = (bot:EntIndex() % 2 == 0) and 45 or -45
-                     local offsetDir = carrierDir:Angle()
-                     offsetDir:RotateAroundAxis(Vector(0,0,1), flankAngle)
-                     targetPos = carrierPos + offsetDir:Forward() * 300
+                     -- Near goal: all slots spread wide for pass options / lane blocking
+                     local fwdNear = {120,  120, -30, -30}
+                     local latNear = {400, -400, 260, -260}
+                     fwdOff = fwdNear[slot + 1]
+                     latOff = latNear[slot + 1]
                  else
-                     -- Run Interference: Position 300u ahead of carrier to absorb tackles
-                     targetPos = carrierPos + carrierDir * 350
+                     -- Open field: two bots ahead-and-wide, two trailing-and-tight
+                     local fwdOpen = {260,  260,  60,  60}
+                     local latOpen = {320, -320, 200, -200}
+                     fwdOff = fwdOpen[slot + 1]
+                     latOff = latOpen[slot + 1]
                  end
+                 targetPos = carrierPos + carrierDir * fwdOff + sideDir * latOff
                  end
               else
                   self.state = Bot.STATE_CHASE_BALL
@@ -1169,14 +1315,40 @@ function Bot:MoveTo(targetPos)
         if nextPoint then
             waypoint = nextPoint
             
-            -- If NavMesh indicates a jump is needed (vertical link), trigger it
-            if self.ply.PathJump then
+            -- NavMesh says next area is higher — only jump if (a) there is a
+            -- real vaultable obstacle ahead AND (b) the height delta is within
+            -- what a normal jump can clear (~60 HU). Above that the bot can't
+            -- make it and would just bonk the wall repeatedly.
+            local heightDelta = waypoint.z - self.ply:GetPos().z
+            if self.ply.PathJump and heightDelta <= 60 and self:DetectJumpableObstacle(self.targetYaw) then
                 self.wantJump = true
             end
         end
     end
 
     local myPos = self.ply:GetPos()
+
+    -- Passive pad awareness: if a cached jump pad lies within a tight corridor
+    -- of the path from bot → waypoint, steer through it naturally.
+    -- The bot doesn't need to detour — it just slightly adjusts the waypoint so
+    -- the trigger fires as the bot passes through the area.
+    if not self.throwState then
+        local toWaypt    = waypoint - myPos
+        local wayptDist  = toWaypt:Length2D()
+        local wayptDir   = toWaypt:GetNormalized()
+        for _, padPos in ipairs(GetJumpPads()) do
+            local toPad = padPos - myPos
+            local proj  = wayptDir:Dot(toPad)
+            if proj > 80 and proj <= wayptDist + 80 then   -- pad is ahead, not past goal
+                local perpDist = (toPad - wayptDir * proj):Length2D()
+                if perpDist < 140 then
+                    waypoint = padPos   -- aim through the pad
+                    break
+                end
+            end
+        end
+    end
+
     local dir = (waypoint - myPos):GetNormalized()
     self.targetYaw = dir:Angle().y
 end
@@ -1397,21 +1569,17 @@ function Bot:BuildCommand(cmd)
     end
 
     -- 3. ACTIONS
-    if self.wantJump then 
-        cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_JUMP)) 
-        self.crouchUntil = CurTime() + 0.5
-    end
-    if (self.crouchUntil or 0) > CurTime() and not self.ply:OnGround() then
-        cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_DUCK))
+    if self.wantJump then
+        cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_JUMP))
     end
     if self.wantPunch then cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_ATTACK)) end
     if self.wantReload then cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_RELOAD)) end
 
     -- 4. THROW INPUT
-    -- Lifecycle: "winding"/"hailmary"/"goalshot" → hold IN_ATTACK2 (charges power)
+    -- Lifecycle: "winding"/"hailmary"/"goalshot"/"advance" → hold IN_ATTACK2 (charges power)
     --            "release"   → release IN_ATTACK2 (throw.lua starts 0.45s countdown)
     --            "countdown" → hold aim for STATE.Time (0.45s) so the ball flies correctly
-    if self.throwState == "winding" or self.throwState == "hailmary" or self.throwState == "goalshot" then
+    if self.throwState == "winding" or self.throwState == "hailmary" or self.throwState == "goalshot" or self.throwState == "advance" then
         -- Release check runs here every tick (not in ExecuteState's 0.15s throttle) so
         -- chargeTime = throwDuration exactly, matching what was calculated.
         if self.throwStart and CurTime() >= self.throwStart + self.throwDuration then

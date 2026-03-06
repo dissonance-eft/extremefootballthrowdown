@@ -11,8 +11,10 @@
 -- ============================================================================
 
 BotPathfinder      = {}
-BotPathfinder.Cache      = {} -- nextWaypoint Vector per bot
-BotPathfinder.LastUpdate = {} -- CurTime() of last A* calculation per bot
+BotPathfinder.Cache           = {} -- nextWaypoint Vector per bot
+BotPathfinder.LastUpdate      = {} -- CurTime() of last A* calculation per bot
+BotPathfinder.HazardAreas     = {} -- nav area IDs overlapping a kill/reset trigger
+BotPathfinder.HazardCacheBuilt = false
 
 local pathUpdateInterval = 0.5 -- Seconds between A* recalculations
 
@@ -32,6 +34,41 @@ local function ReconstructPath(cameFrom, current, startArea)
 end
 
 -- ============================================================================
+-- Hazard area cache
+-- ============================================================================
+-- Built once after the nav mesh loads. Any nav area whose bounding volume
+-- overlaps a trigger_hurt, trigger_ballreset, or trigger_kill is marked here.
+-- A* skips these areas so bots never plan routes through death zones.
+
+local HAZARD_CLASSES = { trigger_hurt = true, trigger_ballreset = true, trigger_kill = true }
+
+local function BuildHazardCache()
+	BotPathfinder.HazardAreas = {}
+	for _, area in pairs(navmesh.GetAllNavAreas()) do
+		local c0, c1, c2, c3 = area:GetCorner(0), area:GetCorner(1), area:GetCorner(2), area:GetCorner(3)
+		local minZ = math.min(c0.z, c1.z, c2.z, c3.z)
+		local maxZ = math.max(c0.z, c1.z, c2.z, c3.z)
+		local mins = Vector(
+			math.min(c0.x, c1.x, c2.x, c3.x),
+			math.min(c0.y, c1.y, c2.y, c3.y),
+			minZ - 128
+		)
+		local maxs = Vector(
+			math.max(c0.x, c1.x, c2.x, c3.x),
+			math.max(c0.y, c1.y, c2.y, c3.y),
+			maxZ + 64
+		)
+		for _, ent in pairs(ents.FindInBox(mins, maxs)) do
+			if HAZARD_CLASSES[ent:GetClass()] then
+				BotPathfinder.HazardAreas[area:GetID()] = true
+				break
+			end
+		end
+	end
+	BotPathfinder.HazardCacheBuilt = true
+end
+
+-- ============================================================================
 -- Public API
 -- ============================================================================
 
@@ -42,6 +79,7 @@ end
 ---@return Vector|nil
 function BotPathfinder.GetNextWaypoint(bot, targetPos)
 	if not navmesh.IsLoaded() then return nil end
+	if not BotPathfinder.HazardCacheBuilt then BuildHazardCache() end
 
 	local botPos = bot:GetPos()
 
@@ -105,8 +143,9 @@ function BotPathfinder.GetNextWaypoint(bot, targetPos)
 				waypoint.x = waypoint.x + math.random(-20, 20)
 				waypoint.y = waypoint.y + math.random(-20, 20)
 
-				-- Jump hint: if next area is significantly higher, tell the bot
-				bot.PathJump = waypoint.z > botPos.z + 40
+				-- Jump hint: if next area is meaningfully higher, tell the bot.
+				-- 64 HU = one player step-up; avoids false triggers on slight terrain.
+				bot.PathJump = waypoint.z > botPos.z + 64
 
 				BotPathfinder.Cache[bot]      = waypoint
 				BotPathfinder.LastUpdate[bot] = CurTime()
@@ -118,9 +157,10 @@ function BotPathfinder.GetNextWaypoint(bot, targetPos)
 		table.remove(openSet, currentIndex)
 
 		for _, neighbor in ipairs(current:GetAdjacentAreas()) do
+			local nID = neighbor:GetID()
+			if BotPathfinder.HazardAreas[nID] then continue end -- skip death zones
 			local tentativeG = gScore[current:GetID()] +
 			                   current:GetCenter():Distance(neighbor:GetCenter())
-			local nID = neighbor:GetID()
 
 			if tentativeG < (gScore[nID] or math.huge) then
 				cameFrom[nID] = current

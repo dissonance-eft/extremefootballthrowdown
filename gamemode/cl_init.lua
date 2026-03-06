@@ -37,16 +37,23 @@ net.Receive("eft_roundtimer", function()
 	GAMEMODE.NetRoundEndsAt = net.ReadFloat()
 end)
 
--- Suppress join/leave messages for bots and "unconnected" (pre-auth name)
--- Bot names always end in "Bot" (ViperBot, CobraBot, etc.)
-hook.Add("ChatText", "SuppressBotJoinLeave", function(index, name, text, type)
+-- Suppress join/leave messages for bots and "unconnected" (pre-auth name).
+-- GM:ChatText is the gamemode-level hook and fires before hook.Add callbacks,
+-- making it the most reliable suppression point.
+function GM:ChatText(index, name, text, type)
 	if type == "joinleave" then
-		if name == "unconnected" then return true end
-		if string.EndsWith(name, "Bot") then return true end
-		-- Also check the full text for bot names (disconnect messages use full text)
-		if string.find(text, "Bot", 1, true) then return true end
+		local n = name or ""
+		local t = text or ""
+		-- Suppress "unconnected" (bot pre-auth), bot names ending in "Bot",
+		-- and any joinleave text that contains a bot name
+		if n == "unconnected"
+		or string.find(n, "Bot", 1, true)
+		or string.find(t, "Bot", 1, true) then
+			return true
+		end
 	end
-end)
+	return self.BaseClass.ChatText(self, index, name, text, type)
+end
 
 -- Fretta Legacy Fonts
 function surface.CreateLegacyFont(font, size, weight, antialias, additive, name, shadow, outline, blursize)
@@ -431,72 +438,25 @@ function GM:PostDrawSkyBox()
 	self.DrawingInSky = false
 end
 
-function GM:Draw3DTieBreaker()
-	local tiebreaker = self.TieBreaker
-	if not tiebreaker:IsValid() then return end
-
-	local redplayer, blueplayer = tiebreaker:GetRedPlayer(), tiebreaker:GetBluePlayer()
-
-	local camang = EyeAngles3D2D()
-	camang:RotateAroundAxis(camang:Right(), self.CameraYawLerp / 5)
-
-	--render.PushFilterMin(TEXFILTER.ANISOTROPIC)
-	--render.PushFilterMag(TEXFILTER.ANISOTROPIC)
-	cam.IgnoreZ(true)
-	cam.Start3D2D(EyePos3D2DScreen(0, 400), camang, 1)
-
-		--draw.RoundedBox(16, -250, -32, 500, 64, color_black_alpha90)
-		draw.SimpleText("TIE BREAKER", "eft_3dteamscore", 0, -32, Color(HSVtoRGB((CurTime() * 180) % 360)), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-
-		draw.RoundedBox(8, -342, -24, 300, 48, color_black_alpha90)
-		if redplayer:IsValid() then
-			local healthw = math.Clamp(redplayer:Health() / 100, 0, 1) * 292
-			if healthw > 0 then
-				draw.RoundedBox(math.Clamp(math.floor(healthw / 2), 0, 8), -46 - healthw, -20, healthw, 40, team.GetColor(TEAM_RED))
-			end
-		end
-
-		draw.RoundedBox(8, 42, -24, 300, 48, color_black_alpha90)
-		if blueplayer:IsValid() then
-			local healthw = math.Clamp(blueplayer:Health() / 100, 0, 1) * 292
-			if healthw > 0 then
-				draw.RoundedBox(math.Clamp(math.floor(healthw / 2), 0, 8), 46, -20, healthw, 40, team.GetColor(TEAM_BLUE))
-			end
-		end
-
-	cam.End3D2D()
-	cam.IgnoreZ(false)
-	--render.PopFilterMin()
-	--render.PopFilterMag()
-end
-
 function GM:Draw3DHUD()
-	if not self.TieBreaker then
-		self:Draw3DBallIndicator()
-	end
+	self:Draw3DBallIndicator()
 
 	MySelf:CallStateFunction("PreDraw3DHUD")
 
 	cam.Start3D(EyePos(), EyeAngles(), 90)
 
-	if self.TieBreaker then
-		self:Draw3DTieBreaker()
+	if team.Joinable(MySelf:Team()) and MySelf:Team() ~= TEAM_SPECTATOR then
+		--self:Draw3DHealthBar()
+		self:Draw3DWeapon()
+		self:Draw3DPotentialWeapon()
+		--[[self:Draw3DGoalIndicator()]]
 
 		MySelf:CallStateFunction("Draw3DHUD")
-	else
-		if team.Joinable(MySelf:Team()) and MySelf:Team() ~= TEAM_SPECTATOR then
-			--self:Draw3DHealthBar()
-			self:Draw3DWeapon()
-			self:Draw3DPotentialWeapon()
-			--[[self:Draw3DGoalIndicator()]]
-
-			MySelf:CallStateFunction("Draw3DHUD")
-		end
-
-		self:Draw3DBallPowerup()
-		self:Draw3DTeamScores()
-		--self:Draw3DGameState()
 	end
+
+	self:Draw3DBallPowerup()
+	self:Draw3DTeamScores()
+	--self:Draw3DGameState()
 
 	self:Draw3DNotices()
 
@@ -1305,6 +1265,13 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 		self.SpecCamDist = nil
 	end
 
+	-- Freecam passthrough: no tilt, no FOV modification, reset persistent state
+	if pl:GetObserverMode() == OBS_MODE_ROAMING then
+		lerpfov = fov
+		roll = 0
+		return self.BaseClass.CalcView(self, pl, origin, angles, fov, znear, zfar)
+	end
+
 	if pl:Alive() and pl:GetObserverMode() == OBS_MODE_NONE then
 		if pl.LookBehind then
 			angles:RotateAroundAxis(Vector(0, 0, 1), pl.LookBehind * -180)
@@ -1325,44 +1292,47 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 		end
 
 		-- Camera tilt & FOV effects
-		local vel = pl:GetVelocity()
-		local speed = vel:Length2D() -- Horizontal speed only (ignore vertical from jumps)
-		
-		-- Mild tilt at ALL speeds (subtle body english during normal movement)
-		if speed > 80 then
-			local mildTilt = vel:GetNormalized():Dot(angles:Right()) * math.Clamp(speed / 350, 0, 1) * 3
-			targetroll = targetroll + mildTilt
-		end
+		-- Speed effects only apply in normal walk movement (not noclip/ladder/etc.)
+		if pl:GetMoveType() == MOVETYPE_WALK then
+			local vel = pl:GetVelocity()
+			local speed = vel:Length2D() -- Horizontal speed only (ignore vertical from jumps)
 
-		-- CHARGING: Aggressive missile-like tunnel vision
-		if speed >= 290 then
-			local intensity = math.Clamp((speed - 290) / 60, 0, 1)
-			local fwdDot = math.Clamp(math.abs(angles:Forward():Dot(vel:GetNormalized())), 0, 1)
+			-- Mild tilt at ALL speeds (subtle body english during normal movement)
+			if speed > 80 then
+				local mildTilt = vel:GetNormalized():Dot(angles:Right()) * math.Clamp(speed / 350, 0, 1) * 2
+				targetroll = targetroll + mildTilt
+			end
 
-			-- FOV widen to simulate speed (up to 20% wider)
-			fov = fov + fov * fwdDot * 0.20 * intensity
+			-- CHARGING: Aggressive missile-like tunnel vision
+			if speed >= 290 then
+				local intensity = math.Clamp((speed - 290) / 60, 0, 1)
+				local fwdDot = math.Clamp(math.abs(angles:Forward():Dot(vel:GetNormalized())), 0, 1)
 
-			-- Charge tilt on top of the mild tilt
-			targetroll = targetroll + vel:GetNormalized():Dot(angles:Right()) * 10 * intensity
-		elseif speed < 150 then
-			-- Snappy recovery if tackled/stopped suddenly to feel the jarring crash of losing momentum
-			if (pl.LastFrameSpeed or 0) >= 290 then
-				-- We just slammed into a wall or got tackled out of a charge!
-				util.ScreenShake(origin, 7, 8, 0.4, 128)
+				-- FOV widen to simulate speed (up to 20% wider)
+				fov = fov + fov * fwdDot * 0.20 * intensity
 
-				-- Bump the camera tilt out of place realistically, so it smoothly swings back
-				roll = roll + math.Rand(-1.5, 1.5)
-			else
-				-- Quickly and smoothly recover back to normal zero tilt
-				roll = Lerp(10 * FrameTime(), roll, 0)
-				
-				if lerpfov and math.abs(lerpfov - fov) > 0.5 then
-					lerpfov = Lerp(20 * FrameTime(), lerpfov, fov) -- fast but smooth FOV zoom-out
+				-- Charge tilt on top of the mild tilt
+				targetroll = targetroll + vel:GetNormalized():Dot(angles:Right()) * 6 * intensity
+			elseif speed < 150 then
+				-- Snappy recovery if tackled/stopped suddenly to feel the jarring crash of losing momentum
+				if (pl.LastFrameSpeed or 0) >= 290 then
+					-- We just slammed into a wall or got tackled out of a charge!
+					util.ScreenShake(origin, 4, 8, 0.25, 128)
+
+					-- Bump the camera tilt out of place realistically, so it smoothly swings back
+					roll = roll + math.Rand(-0.8, 0.8)
+				else
+					-- Quickly and smoothly recover back to normal zero tilt
+					roll = Lerp(10 * FrameTime(), roll, 0)
+
+					if lerpfov and math.abs(lerpfov - fov) > 0.5 then
+						lerpfov = Lerp(20 * FrameTime(), lerpfov, fov) -- fast but smooth FOV zoom-out
+					end
 				end
 			end
+
+			pl.LastFrameSpeed = speed
 		end
-		
-		pl.LastFrameSpeed = speed
 	end
 
 	roll = Lerp(FrameTime() * 8, roll, targetroll)

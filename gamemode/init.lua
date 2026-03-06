@@ -222,16 +222,6 @@ function GM:CanPlayerSuicide(pl)
 	-- Strictly disable suicide if not in active round
 	if not GetGlobalBool("InRound", false) then return false end
 
-	if self.TieBreaker then
-		if pl:Alive() and pl:GetState() == STATE_FIGHTER2D and pl:GetStateInteger() ~= STATE_FIGHTER2D_LOSE then
-			pl:SetStateInteger(STATE_FIGHTER2D_LOSE)
-			pl:SetHealth(1)
-			pl:SetStateFloat(CurTime())
-		end
-
-		return false
-	end
-
 	local ball = self:GetBall()
 	if ball:IsValid() and ball:GetCarrier() == pl then
 		return false
@@ -265,9 +255,6 @@ function GM:PlayerSpawn(pl)
     end
 end
 
--- Tiebreaker logic is now owned by GameManager
-function GM:SetupTieBreaker() GAMEMANAGER:SetupTieBreaker() end
-function GM:EndTieBreaker(winnerteamid) GAMEMANAGER:EndTieBreaker(winnerteamid) end
 
 function GM:OnRoundStart(num)
 	for _, pl in pairs(player.GetAll()) do
@@ -343,7 +330,7 @@ cvars.RemoveChangeCallback('sv_alltalk', 'eft')
 cvars.AddChangeCallback('sv_alltalk', function(cvar, old, new) alltalk = tobool(new) end, 'eft')
 
 function GM:PlayerCanHearPlayersVoice(listener, talker)
-    return alltalk or self.TieBreaker or not self:InRound() or listener:Team() == TEAM_SPECTATOR or listener:Team() == TEAM_UNASSIGNED or listener:Team() == talker:Team(), false
+    return alltalk or not self:InRound() or listener:Team() == TEAM_SPECTATOR or listener:Team() == TEAM_UNASSIGNED or listener:Team() == talker:Team(), false
 end
 
 function GM:SpawnRandomWeaponAtSpawn(class, teamid, silent)
@@ -364,7 +351,7 @@ function GM:SpawnRandomWeaponAtSpawn(class, teamid, silent)
 end
 
 function GM:SpawnRandomWeapon(silent)
-	if self.VeryCompetitive or #ents.FindByClass("logic_norandomweapons") > 0 or self.TieBreaker then return end
+	if self.VeryCompetitive or #ents.FindByClass("logic_norandomweapons") > 0 then return end
 
 	local weps = self:GetWeapons()
 	if #weps == 0 then return end
@@ -754,10 +741,15 @@ function GM:Base_PlayerSpawn( pl )
 		else
 			pl:StripWeapons()
 			GAMEMODE:PlayerSpawnAsSpectator( pl )
-			if ( #player.GetAll() > 1 ) then
-				pl:Spectate( OBS_MODE_CHASE )
+			-- Base always sets OBS_MODE_ROAMING; override to chase so the team
+			-- select screen never appears over freecam.
+			local ball = GAMEMODE.GetBall and GAMEMODE:GetBall()
+			if IsValid( ball ) then
+				pl:SpectateEntity( ball )
+			elseif #player.GetAll() > 1 then
 				pl:SpectateEntity( table.Random( player.GetAll() ) )
 			end
+			pl:Spectate( OBS_MODE_CHASE )
 		end
 		return
 	end
