@@ -4,6 +4,19 @@
 local MAT_RED = Material("red_rhinos")
 local MAT_BLUE = Material("blue_bulls")
 
+-- Client-side mute state (UserID → bool).  Survives scoreboard open/close.
+local MutedPlayers = {}
+
+hook.Add("PlayerCanHearPlayersVoice", "EFTClientMute", function(listener, talker)
+    if MutedPlayers[talker:UserID()] then
+        return false, false
+    end
+end)
+
+hook.Add("PlayerDisconnected", "EFTClientMuteCleanup", function(ply)
+    MutedPlayers[ply:UserID()] = nil
+end)
+
 -- Fonts (scaled up 25%)
 surface.CreateFont("EFTScoreboardTitle", {
 	font = "Patua One",
@@ -135,6 +148,22 @@ function PANEL:DrawPlayerRow(ply, x, y, w, isLocal)
 			ply.ScoreboardAvatar = vgui.Create("AvatarImage", self)
 			ply.ScoreboardAvatar:SetSize(32, 32)
 			ply.ScoreboardAvatar:SetPlayer(ply, 64)
+
+			if ply ~= LocalPlayer() then
+				ply.ScoreboardAvatar:SetCursor("hand")
+				ply.ScoreboardAvatar:SetMouseInputEnabled(true)
+				ply.ScoreboardAvatar.OnMouseReleased = function(s, btn)
+					if btn ~= MOUSE_LEFT then return end
+					local uid = ply:UserID()
+					MutedPlayers[uid] = not MutedPlayers[uid]
+				end
+				ply.ScoreboardAvatar.PaintOver = function(s, w, h)
+					if not MutedPlayers[ply:UserID()] then return end
+					surface.SetDrawColor(180, 0, 0, 170)
+					surface.DrawRect(0, 0, w, h)
+					draw.SimpleText("✕", "EFTScoreboardPlayer", w / 2, h / 2, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				end
+			end
 		end
 		if ply.ScoreboardAvatarBot then ply.ScoreboardAvatarBot:SetVisible(false) end
 		ply.ScoreboardAvatar:SetPos(x + 6, y + 2)
