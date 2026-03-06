@@ -457,14 +457,9 @@ end
 -- ============================================================================
 -- JUMP PAD CACHE
 -- ============================================================================
--- Curated list of bot reaction sounds (paths match EmoteSounds in sv_emotes.lua).
--- Played at 120 dB so spectators anywhere on the map can hear them.
-local BOT_EMOTE_SOUNDS = {
-    "goteem.ogg", "yeahboi.ogg", "lottadamage.ogg", "yeet.ogg", "oof.ogg",
-    "honk.ogg", "nani.ogg", "yodel.ogg", "whatspoppin.ogg", "gotchabitch.ogg",
-    "jjonahlaugh.ogg", "kawhilaugh.ogg", "smoovehaha.ogg", "aightbet.ogg",
-    "dsplaugh.ogg", "eahhh.ogg", "smoovesplash.ogg",
-}
+-- Flat list of all emote sounds, built once from the global EmoteSounds table
+-- (declared in sv_emotes.lua). Populated lazily on first Think.
+local BotEmoteCache = nil
 
 -- Built once per map from trigger_abspush / trigger_jumppad entity data.
 -- Bots use this in MoveTo for passive pad awareness: if a pad lies on the
@@ -576,12 +571,17 @@ function Bot:Think()
 
     -- ── IN-GAME EMOTE (audio only) ─────────────────────────────────────────
     -- ~0.1% chance per think tick ≈ 15s average gap across 10 bots.
-    -- 30s per-bot cooldown. State doesn't matter — bots can emote any time.
-    -- 120 dB so spectators on ball-cam can hear from anywhere on the map.
-    if (not self.emoteCooldown or CurTime() >= self.emoteCooldown)
+    -- 20s per-bot cooldown. State doesn't matter — bots can emote any time.
+    -- Positional audio (default 75 dB) to match human emotes.
+    if not BotEmoteCache and EmoteSounds then
+        BotEmoteCache = {}
+        for _, v in pairs(EmoteSounds) do table.insert(BotEmoteCache, v) end
+    end
+    if BotEmoteCache
+    and (not self.emoteCooldown or CurTime() >= self.emoteCooldown)
     and math.random() < 0.001 then
-        self.ply:EmitSound(table.Random(BOT_EMOTE_SOUNDS), 120, 100, 1, CHAN_VOICE)
-        self.emoteCooldown = CurTime() + 30
+        self.ply:EmitSound(table.Random(BotEmoteCache), 75, 100, 1, CHAN_VOICE)
+        self.emoteCooldown = CurTime() + 20
     end
 
     self:DecideState()

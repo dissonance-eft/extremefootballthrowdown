@@ -3,7 +3,7 @@
 -- sv_emotes.lua
 -- Handles chat commands to play sound emotes
 
-local EmoteSounds = {
+EmoteSounds = {
 	["adultvirgin"] = "adultvirgin.ogg",
 	["aightbet"] = "aightbet.ogg",
 	["aightbet2"] = "aightbet2.ogg",
