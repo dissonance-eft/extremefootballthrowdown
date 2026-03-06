@@ -116,25 +116,6 @@ local EmotePassthrough = {
     ["thanks"] = "speach/gabe_thanks.ogg",
 }
 
--- Flat sound list for bots, built once on first use
-local BotEmoteSoundList = nil
-local function GetBotEmoteSounds()
-    if BotEmoteSoundList then return BotEmoteSoundList end
-    BotEmoteSoundList = {}
-    for _, v in pairs(EmoteSounds) do
-        table.insert(BotEmoteSoundList, v)
-    end
-    return BotEmoteSoundList
-end
-
--- Called from obj_bot.lua for rare in-game audio emotes
-function EFTPlayBotEmote(ply)
-    local sounds = GetBotEmoteSounds()
-    if #sounds > 0 then
-        ply:EmitSound(table.Random(sounds), 95, 100, 1, CHAN_VOICE)
-    end
-end
-
 -- Cooldown to prevent spam
 local EmoteGenericCooldown = 2.0
 local PlayerCooldowns = {}
