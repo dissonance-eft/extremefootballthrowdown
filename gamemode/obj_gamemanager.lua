@@ -449,42 +449,6 @@ function GameManager:OnTeamScored(teamid, hitter, points, istouch)
     end
 end
 
---- Set up the tiebreaker minigame between the top players of each team.
---- Maps to: C# `void SetupTieBreaker()`
-function GameManager:SetupTieBreaker()
-    local GM = GAMEMODE
-    if IsValid(GM.TieBreaker) then return end
-
-    for _, ent in pairs(ents.FindByClass("prop_ball")) do ent:Remove() end
-    for _, ent in pairs(ents.FindByClass("prop_carry_*")) do ent:Remove() end
-
-    local redpl, bluepl = team.TopPlayer(TEAM_RED), team.TopPlayer(TEAM_BLUE)
-
-    if redpl and bluepl then
-        local ballhome = GM:GetBallHome()
-        local ent = ents.Create("game_tiebreaker_controller")
-        if ent:IsValid() then
-            ent:SetPos(ballhome + Vector(0, -256, 0))
-            ent:SetRedPlayer(redpl)
-            ent:SetBluePlayer(bluepl)
-            ent:Spawn()
-        end
-
-        redpl:SetPos(ballhome + Vector(-72, -256, 128))
-        bluepl:SetPos(ballhome + Vector(72, -256, 128))
-        redpl:SetState(STATE_FIGHTER2D)
-        bluepl:SetState(STATE_FIGHTER2D)
-    end
-end
-
---- End the tiebreaker minigame.
---- Maps to: C# `void EndTieBreaker(int winnerTeamId)`
----@param winnerteamid number The winning team
-function GameManager:EndTieBreaker(winnerteamid)
-    for _, ent in pairs(ents.FindByClass("game_tiebreaker_controller")) do
-        ent:Remove()
-    end
-end
 
 -- ============================================================================
 -- VOTING STATE (Phase 2d)
