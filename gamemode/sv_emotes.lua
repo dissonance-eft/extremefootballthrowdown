@@ -111,8 +111,14 @@ local EmoteSounds = {
 	["youbrokemygrill"] = "speach/youbrokemygrill.ogg"
 }
 
+-- Passthrough emotes: play a sound but let the chat text show (natural words/phrases)
+local EmotePassthrough = {
+    ["thanks"]   = "speach/gabe_thanks.ogg",
+    ["oh fuck!"] = "speach/gabe_thanks.ogg",  -- reuse a reaction; swap if a better clip exists
+}
+
 -- Cooldown to prevent spam
-local EmoteGenericCooldown = 2.0 
+local EmoteGenericCooldown = 2.0
 local PlayerCooldowns = {}
 
 -- Clean up cooldowns when player disconnects to prevent memory leak
@@ -122,22 +128,25 @@ end)
 
 hook.Add("PlayerSay", "EFTEmoteChat", function(ply, text, team)
 	local cleanText = string.lower(string.Trim(text))
-	
-	-- Check for match
+
+	-- Passthrough emotes: play sound but keep text visible in chat
+	local passthroughSound = EmotePassthrough[cleanText]
+	if passthroughSound then
+		if not (PlayerCooldowns[ply] and CurTime() < PlayerCooldowns[ply]) then
+			ply:EmitSound(passthroughSound, 75, 100, 1, CHAN_VOICE)
+			PlayerCooldowns[ply] = CurTime() + EmoteGenericCooldown
+		end
+		return  -- no return value = text shows normally in chat
+	end
+
+	-- Standard emotes: play sound and hide trigger text
 	local soundFile = EmoteSounds[cleanText]
 	if soundFile then
-		-- Check cooldown
 		if PlayerCooldowns[ply] and CurTime() < PlayerCooldowns[ply] then
-			return "" -- Still hide the text, but no sound
+			return ""  -- still on cooldown: hide text, no sound
 		end
-		
-		-- Play sound at player's location
 		ply:EmitSound(soundFile, 75, 100, 1, CHAN_VOICE)
-		
-		-- Set cooldown
 		PlayerCooldowns[ply] = CurTime() + EmoteGenericCooldown
-		
-		-- Hide the trigger text from chat
-		return "" 
+		return ""
 	end
 end)
