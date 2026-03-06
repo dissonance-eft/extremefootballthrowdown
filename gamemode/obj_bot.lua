@@ -556,10 +556,7 @@ function Bot:Think()
         end
         return
     else
-        -- Clear dance state; preserve forcedSeq only if a live in-game emote is running
-        if not (self.inGameEmoteEnd and CurTime() < self.inGameEmoteEnd) then
-            self.forcedSeq = nil
-        end
+        self.forcedSeq     = nil
         self.nextDanceTime = nil
     end
 
@@ -568,25 +565,14 @@ function Bot:Think()
     local thinkRate = 0.15 / GetConVar("eft_bots_skill"):GetFloat()
     self.nextThink = CurTime() + thinkRate * (0.7 + math.random() * 0.6)
 
-    -- ── IN-GAME EMOTE ──────────────────────────────────────────────────────
+    -- ── IN-GAME EMOTE (audio only) ─────────────────────────────────────────
     -- ~0.04% chance per think tick ≈ 37s average gap across 10 bots.
-    -- 60s per-bot cooldown so the same bot can't repeat quickly.
-    if self.inGameEmoteEnd and CurTime() >= self.inGameEmoteEnd then
-        self.inGameEmoteEnd = nil
-        self.forcedSeq      = nil
-    end
-    if self.throwState == nil
-    and not self.ply:IsCarrying()
-    and (not self.emoteCooldown or CurTime() >= self.emoteCooldown)
-    and math.random() < 0.0004 then
-        local emoteSeqs = {"taunt_robot", "taunt_dance", "taunt_muscle", "taunt_laugh",
-                           "taunt_cheer", "taunt_persistence", "taunt_zombie"}
-        local seq = self.ply:LookupSequence(table.Random(emoteSeqs))
-        if seq and seq > 0 then
-            self.forcedSeq      = seq
-            self.inGameEmoteEnd = CurTime() + 1.5
-            self.emoteCooldown  = CurTime() + 60
-        end
+    -- 60s per-bot cooldown. State doesn't matter — bots can emote any time.
+    if (not self.emoteCooldown or CurTime() >= self.emoteCooldown)
+    and math.random() < 0.0004
+    and EFTPlayBotEmote then
+        EFTPlayBotEmote(self.ply)
+        self.emoteCooldown = CurTime() + 60
     end
 
     self:DecideState()
