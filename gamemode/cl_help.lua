@@ -197,8 +197,7 @@ function GM:ShowHelp()
 		{ text = "First team to the score limit wins." },
 		{ sep = true },
 		{ header = "KNOWN ISSUES" },
-		{ text = "Bots may struggle on maps without a nav mesh." },
-		{ text = "Run nav_generate in-game (sandbox mode works) to fix bot pathing." },
+		{ text = "Bots currently have navigation issues on some maps — this is being fixed." },
 	}
 
 	local ry = 16
