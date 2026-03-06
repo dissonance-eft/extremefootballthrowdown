@@ -566,10 +566,10 @@ function Bot:Think()
     self.nextThink = CurTime() + thinkRate * (0.7 + math.random() * 0.6)
 
     -- ── IN-GAME EMOTE (audio only) ─────────────────────────────────────────
-    -- ~0.04% chance per think tick ≈ 37s average gap across 10 bots.
+    -- ~0.1% chance per think tick ≈ 15s average gap across 10 bots.
     -- 60s per-bot cooldown. State doesn't matter — bots can emote any time.
     if (not self.emoteCooldown or CurTime() >= self.emoteCooldown)
-    and math.random() < 0.0004
+    and math.random() < 0.001
     and EFTPlayBotEmote then
         EFTPlayBotEmote(self.ply)
         self.emoteCooldown = CurTime() + 60

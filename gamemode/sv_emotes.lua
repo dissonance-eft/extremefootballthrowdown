@@ -131,7 +131,7 @@ end
 function EFTPlayBotEmote(ply)
     local sounds = GetBotEmoteSounds()
     if #sounds > 0 then
-        ply:EmitSound(table.Random(sounds), 75, 100, 1, CHAN_VOICE)
+        ply:EmitSound(table.Random(sounds), 95, 100, 1, CHAN_VOICE)
     end
 end
 
