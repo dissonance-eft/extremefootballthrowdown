@@ -189,11 +189,12 @@ function GM:ShowHelp()
 
 	local rules = {
 		{ header = "HOW TO PLAY" },
-		{ text = "Get the ball into the enemy goal to score." },
-		{ text = "Carry the ball or throw it to teammates downfield." },
-		{ text = "Punch opponents to knock them down and force a fumble." },
-		{ text = "A knocked-down carrier drops the ball — either team can grab it." },
-		{ text = "The ball resets to centre after each goal." },
+		{ text = "Touch the ball to pick it up — possession is automatic, no button needed." },
+		{ text = "Carry or throw the ball into the enemy goal to score." },
+		{ text = "Tackle by running into opponents at speed — this knocks them down and strips the ball." },
+		{ text = "Momentum and staying upright are everything. Build speed before engaging." },
+		{ text = "The ball is always live after a fumble — anyone can grab it instantly." },
+		{ text = "Passing leaves you standing still and exposed. Use it when you have space." },
 		{ text = "First to 10 goals wins, or highest score after 15 minutes." },
 		{ sep = true },
 		{ header = "KNOWN ISSUES" },
