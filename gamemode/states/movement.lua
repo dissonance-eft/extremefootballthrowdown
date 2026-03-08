@@ -175,7 +175,16 @@ end
 end
 
 function STATE:CalcMainActivity(pl, velocity)
-	if pl:CanCharge() then
+	-- Mirrors CanCharge() exactly, but triggers 30 HU/s early (270 vs 300)
+	-- so the arm-forward pose is fully blended in when charge fires at 300.
+	if velocity:LengthSqr() >= (270 * 270)
+	and pl:GetStateInteger() == 0   -- disabled during lookback (-1) and other states
+	and pl:IsOnGround()
+	and not pl:Crouching()
+	and not pl:IsCarrying()
+	and pl:WaterLevel() <= 1
+	and (CLIENT and LocalPlayer() ~= pl or pl:KeyDown(IN_FORWARD))
+	then
 		pl.CalcIdeal = ACT_HL2MP_RUN_CHARGING
 		pl.CalcSeqOverride = -1
 	end

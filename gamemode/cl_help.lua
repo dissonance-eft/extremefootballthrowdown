@@ -73,7 +73,6 @@ function GM:ShowHelp()
 	local sw, sh = ScrW(), ScrH()
 	local pad     = math.Round(sw * 0.07)
 	local colGap  = 16
-	local colW    = (sw - pad * 2 - colGap) / 2
 
 	local frame = vgui.Create("DFrame")
 	frame:SetTitle("")
@@ -131,14 +130,18 @@ function GM:ShowHelp()
 		"EFTHelpWIPBody", COLOR_YELLOW, true)
 
 	-- ── COLUMNS ─────────────────────────────────────────────────────────────
-	local colY   = noticeY + 90 + 20
-	local emoteH = 150
-	local colH   = sh - colY - 50 - emoteH - 12
+	-- Columns: narrow Controls | wide How to Play | narrow Emotes
+	-- Middle gets ~45% so rules have breathing room; sides split the rest equally.
+	local colY    = noticeY + 90 + 20
+	local colH    = sh - colY - 50
+	local totalW  = sw - pad * 2
+	local colMidW = math.floor(totalW * 0.45)
+	local colSideW = math.floor((totalW - colMidW - colGap * 2) / 2)
 
 	-- LEFT: Controls
 	local ctrlPanel = vgui.Create("DPanel", frame)
 	ctrlPanel:SetPos(pad, colY)
-	ctrlPanel:SetSize(colW, colH)
+	ctrlPanel:SetSize(colSideW, colH)
 	ctrlPanel.Paint = function(s, w, h)
 		draw.RoundedBox(6, 0, 0, w, h, COLOR_PANEL)
 	end
@@ -159,31 +162,30 @@ function GM:ShowHelp()
 
 	local lineH  = 34
 	local sepH   = 12
-	local innerW = colW - 32
+	local innerW = colSideW - 32
 	local cy = 16
 	for _, row in ipairs(controls) do
 		if row.header then
-			MakeLabel(ctrlPanel, 0, cy, colW, lineH, row.header,
+			MakeLabel(ctrlPanel, 0, cy, colSideW, lineH, row.header,
 				"EFTHelpSection", COLOR_ORANGE, false):SetContentAlignment(5)
 			cy = cy + lineH + 4
-			-- underline
 			local ul = vgui.Create("DPanel", ctrlPanel)
-			ul:SetPos(16, cy); ul:SetSize(colW - 32, 1)
+			ul:SetPos(16, cy); ul:SetSize(colSideW - 32, 1)
 			ul.Paint = function(s, w, h) surface.SetDrawColor(COLOR_DIVIDER) surface.DrawRect(0,0,w,h) end
 			cy = cy + 8
 		elseif row.sep then
 			cy = cy + sepH
 		else
-			local lbl = MakeLabel(ctrlPanel, 16, cy, innerW, lineH,
+			MakeLabel(ctrlPanel, 16, cy, innerW, lineH,
 				row.key .. "   —   " .. row.action, "EFTHelpBody", COLOR_DIM, false)
 			cy = cy + lineH
 		end
 	end
 
-	-- RIGHT: How to Play
+	-- MIDDLE: How to Play (wider — rules need room to breathe)
 	local rulesPanel = vgui.Create("DPanel", frame)
-	rulesPanel:SetPos(pad + colW + colGap, colY)
-	rulesPanel:SetSize(colW, colH)
+	rulesPanel:SetPos(pad + colSideW + colGap, colY)
+	rulesPanel:SetSize(colMidW, colH)
 	rulesPanel.Paint = function(s, w, h)
 		draw.RoundedBox(6, 0, 0, w, h, COLOR_PANEL)
 	end
@@ -197,20 +199,17 @@ function GM:ShowHelp()
 		{ text = "The ball is always live after a fumble — anyone can grab it instantly." },
 		{ text = "Passing leaves you standing still and exposed. Use it when you have space." },
 		{ text = "First to 10 goals wins, or highest score after 15 minutes." },
-		{ sep = true },
-		{ header = "KNOWN ISSUES" },
-		{ text = "Bots currently have navigation issues on some maps — this is being fixed." },
 	}
 
 	local ry = 16
-	local rInnerW = colW - 32
+	local rInnerW = colMidW - 32
 	for _, row in ipairs(rules) do
 		if row.header then
-			MakeLabel(rulesPanel, 0, ry, colW, lineH, row.header,
+			MakeLabel(rulesPanel, 0, ry, colMidW, lineH, row.header,
 				"EFTHelpSection", COLOR_ORANGE, false):SetContentAlignment(5)
 			ry = ry + lineH + 4
 			local ul = vgui.Create("DPanel", rulesPanel)
-			ul:SetPos(16, ry); ul:SetSize(colW - 32, 1)
+			ul:SetPos(16, ry); ul:SetSize(colMidW - 32, 1)
 			ul.Paint = function(s, w, h) surface.SetDrawColor(COLOR_DIVIDER) surface.DrawRect(0,0,w,h) end
 			ry = ry + 8
 		elseif row.sep then
@@ -222,7 +221,7 @@ function GM:ShowHelp()
 		end
 	end
 
-	-- ── EMOTES ──────────────────────────────────────────────────────────────
+	-- RIGHT: Emotes (scrollable vertical list)
 	-- Type any trigger word in chat to play the sound (hidden from chat log).
 	local emoteNames = {
 		"adultvirgin","aightbet","aightbet2","allahackbar","ayaya","bigbraintime",
@@ -252,46 +251,39 @@ function GM:ShowHelp()
 	table.sort(emoteNames)
 
 	local emotePanel = vgui.Create("DPanel", frame)
-	emotePanel:SetPos(pad, colY + colH + 12)
-	emotePanel:SetSize(sw - pad * 2, emoteH)
+	emotePanel:SetPos(pad + colSideW + colGap + colMidW + colGap, colY)
+	emotePanel:SetSize(colSideW, colH)
 	emotePanel.Paint = function(s, w, h)
 		draw.RoundedBox(6, 0, 0, w, h, COLOR_PANEL)
 	end
 
-	MakeLabel(emotePanel, 0, 8, sw - pad * 2, 28,
-		"EMOTES  —  type trigger word in chat to play (text is hidden)",
+	MakeLabel(emotePanel, 0, 8, colSideW, lineH, "EMOTES",
 		"EFTHelpSection", COLOR_ORANGE, false):SetContentAlignment(5)
+	local eHeaderY = lineH + 4
+	local ul2 = vgui.Create("DPanel", emotePanel)
+	ul2:SetPos(16, eHeaderY); ul2:SetSize(colSideW - 32, 1)
+	ul2.Paint = function(s, w, h) surface.SetDrawColor(COLOR_DIVIDER) surface.DrawRect(0,0,w,h) end
+
+	MakeLabel(emotePanel, 0, eHeaderY + 6, colSideW, 22,
+		"type in chat to play  (text is hidden)",
+		"EFTHelpWIPBody", COLOR_DIM, false):SetContentAlignment(5)
 
 	local scroll = vgui.Create("DScrollPanel", emotePanel)
-	scroll:SetPos(10, 42)
-	scroll:SetSize(sw - pad * 2 - 20, emoteH - 52)
+	local scrollY = eHeaderY + 32
+	scroll:SetPos(10, scrollY)
+	scroll:SetSize(colSideW - 20, colH - scrollY - 10)
 
 	local canvas = scroll:GetCanvas()
-	local chipFont = "EFTHelpWIPBody"
-	local chipPadX, chipPadY = 8, 4
-	local chipH = 26
-	local cx, cy = 0, 0
-	local rowH = chipH + chipPadY
-
-	for _, name in ipairs(emoteNames) do
-		local chip = vgui.Create("DLabel", canvas)
-		chip:SetFont(chipFont)
-		chip:SetText(name)
-		chip:SizeToContents()
-		local cw = chip:GetWide() + chipPadX * 2
-
-		if cx + cw > (sw - pad * 2 - 20) and cx > 0 then
-			cx = 0
-			cy = cy + rowH
-		end
-
-		chip:SetPos(cx + chipPadX, cy + chipPadY / 2)
-		chip:SetSize(chip:GetWide(), chipH)
-		chip:SetColor(COLOR_DIM)
-		cx = cx + cw + 6
+	local entryH = 28
+	for i, name in ipairs(emoteNames) do
+		local lbl = vgui.Create("DLabel", canvas)
+		lbl:SetFont("EFTHelpWIPBody")
+		lbl:SetText(name)
+		lbl:SetColor(COLOR_DIM)
+		lbl:SetPos(12, (i - 1) * entryH)
+		lbl:SetSize(colSideW - 40, entryH)
 	end
-
-	canvas:SetTall(cy + rowH + 4)
+	canvas:SetTall(#emoteNames * entryH + 4)
 
 	-- ── CLOSE HINT ──────────────────────────────────────────────────────────
 	MakeLabel(frame, 0, sh - 32, sw, 24, "Press F1 or ESC to close",

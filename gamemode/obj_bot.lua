@@ -276,13 +276,13 @@ local function CalcThrowPitch(fromPos, toPos, throwForce, preferHighArc)
     local theta1 = math.deg(math.atan(u1)) -- low arc angle
     local theta2 = math.deg(math.atan(u2)) -- high arc angle
     
-    -- Pick the better arc: prefer low arc if reasonable, fallback to high arc for elevated targets
+    -- Always prefer the low arc (direct shot) unless caller explicitly requests a lob.
+    -- The old dz > 100 check was forcing high-arc lobs whenever the goal trigger
+    -- OBBCenter was elevated, causing bots to loop the ball over the top of goals.
     local pitch
-    if dz > 100 or preferHighArc then
-        -- Target is elevated or we explicitly want a high lob
+    if preferHighArc then
         pitch = -theta2
     else
-        -- Use low arc for speed
         pitch = -theta1
     end
     
@@ -579,9 +579,9 @@ function Bot:Think()
     end
     if BotEmoteCache
     and (not self.emoteCooldown or CurTime() >= self.emoteCooldown)
-    and math.random() < 0.001 then
-        self.ply:EmitSound(table.Random(BotEmoteCache), 75, 100, 1, CHAN_VOICE)
-        self.emoteCooldown = CurTime() + 20
+    and math.random() < 0.003 then
+        self.ply:EmitSound(table.Random(BotEmoteCache), 90, 100, 1, CHAN_VOICE)
+        self.emoteCooldown = CurTime() + 10
     end
 
     self:DecideState()
@@ -805,16 +805,16 @@ function Bot:ExecuteState()
 
                             local fromPos = botPos + Vector(0, 0, 64) -- approximate GetShootPos()
 
-                            -- Skip goal shot if brush geometry blocks the direct path (tunnel, wall, etc.)
+                            -- If the direct path hits geometry before the goal center (common because
+                            -- trigger_goal OBBCenters sit inside goal structures), use the hit point
+                            -- as the aim target instead — that's the opening face of the goal.
                             local losTr = util.TraceLine({
                                 start = fromPos,
                                 endpos = actualGoalPos,
                                 mask = MASK_SOLID_BRUSHONLY,
                             })
-                            local calcPitch, flightTime
-                            if not losTr.Hit then
-                                calcPitch, flightTime = CalcThrowPitch(fromPos, actualGoalPos, throwForce)
-                            end
+                            local aimPos = losTr.Hit and losTr.HitPos or actualGoalPos
+                            local calcPitch, flightTime = CalcThrowPitch(fromPos, aimPos, throwForce)
 
                             if calcPitch then
                                 self.throwState = "goalshot"
@@ -823,8 +823,8 @@ function Bot:ExecuteState()
                                 self.throwTarget = nil -- Aiming at goal, not a player
                                 self.throwCooldown = curTime + 2.0
 
-                                -- Aim at the goal
-                                local toGoal2D = (actualGoalPos - botPos)
+                                -- Aim at aimPos (front face of goal, or center if open)
+                                local toGoal2D = (aimPos - botPos)
                                 toGoal2D.z = 0
                                 self.targetYaw = toGoal2D:Angle().y
                                 self.targetPitch = calcPitch

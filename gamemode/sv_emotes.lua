@@ -114,10 +114,12 @@ EmoteSounds = {
 -- Passthrough emotes: play a sound but let the chat text show (natural words/phrases)
 local EmotePassthrough = {
     ["thanks"] = "speach/gabe_thanks.ogg",
+    ["me?"]    = "vo/trainyard/man_me.wav",
+    ["go"]     = "speach/go.ogg",
 }
 
 -- Cooldown to prevent spam
-local EmoteGenericCooldown = 2.0
+local EmoteGenericCooldown = 3.0
 local PlayerCooldowns = {}
 
 -- Clean up cooldowns when player disconnects to prevent memory leak
@@ -132,10 +134,20 @@ hook.Add("PlayerSay", "EFTEmoteChat", function(ply, text, team)
 	local passthroughSound = EmotePassthrough[cleanText]
 	if passthroughSound then
 		if not (PlayerCooldowns[ply] and CurTime() < PlayerCooldowns[ply]) then
-			ply:EmitSound(passthroughSound, 75, 100, 1, CHAN_VOICE)
+			ply:EmitSound(passthroughSound, 90, 100, 1, CHAN_VOICE)
 			PlayerCooldowns[ply] = CurTime() + EmoteGenericCooldown
 		end
 		return  -- no return value = text shows normally in chat
+	end
+
+	-- Random emote: picks any sound from the full table
+	if cleanText == "randomemote" then
+		if PlayerCooldowns[ply] and CurTime() < PlayerCooldowns[ply] then
+			return ""
+		end
+		ply:EmitSound(table.Random(EmoteSounds), 90, 100, 1, CHAN_VOICE)
+		PlayerCooldowns[ply] = CurTime() + EmoteGenericCooldown
+		return ""
 	end
 
 	-- Standard emotes: play sound and hide trigger text
@@ -144,8 +156,19 @@ hook.Add("PlayerSay", "EFTEmoteChat", function(ply, text, team)
 		if PlayerCooldowns[ply] and CurTime() < PlayerCooldowns[ply] then
 			return ""  -- still on cooldown: hide text, no sound
 		end
-		ply:EmitSound(soundFile, 75, 100, 1, CHAN_VOICE)
+		ply:EmitSound(soundFile, 90, 100, 1, CHAN_VOICE)
 		PlayerCooldowns[ply] = CurTime() + EmoteGenericCooldown
 		return ""
 	end
 end)
+
+-- Precache all emote sounds on the server so EmitSound resolves correctly
+-- on dedicated servers where the workshop GMA may not be auto-mounted.
+if SERVER then
+	for _, soundFile in pairs(EmoteSounds) do
+		util.PrecacheSound(soundFile)
+	end
+	for _, soundFile in pairs(EmotePassthrough) do
+		util.PrecacheSound(soundFile)
+	end
+end

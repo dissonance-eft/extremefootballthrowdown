@@ -836,7 +836,7 @@ Players do NOT react to individual mechanics. They react to **spatial pressure**
 **THREATENED:** Carrying ball (25% slower); speed below 300; enemy directly ahead; in a corridor; winding up a throw; just landed from a jump; knocked down.
 
 **THE CRITICAL TRANSITION -- "The 1.5-Second Eternity":**
-Going from 0 to charge speed takes ~1.5 seconds. Every player knows this. Every player feels the panic when they hit a wall and hear the charge sound of enemies converging. This is the signature anxiety of EFT. Any change that shortens or lengthens this window fundamentally alters the game's emotional rhythm.
+Going from 0 to charge speed takes ~1.5 seconds. Any change that shortens or lengthens this window fundamentally alters the game's emotional rhythm.
 
 #### 18.3 What Causes Scrums
 

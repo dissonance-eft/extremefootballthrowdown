@@ -1106,11 +1106,8 @@ end
 local EyeHullMins = Vector(-8, -8, -8)
 local EyeHullMaxs = Vector(8, 8, 8)
 local lerpfov
-local roll = 0
 local lerpdist = 256
 function GM:CalcView(pl, origin, angles, fov, znear, zfar)
-	local targetroll = 0
-
 	if not GetGlobalBool("InRound", true) then
 		local ball = self:GetBall()
 		if IsValid(ball) then
@@ -1265,10 +1262,9 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 		self.SpecCamDist = nil
 	end
 
-	-- Freecam passthrough: no tilt, no FOV modification, reset persistent state
+	-- Freecam passthrough
 	if pl:GetObserverMode() == OBS_MODE_ROAMING then
 		lerpfov = fov
-		roll = 0
 		return self.BaseClass.CalcView(self, pl, origin, angles, fov, znear, zfar)
 	end
 
@@ -1291,54 +1287,26 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 			origin = tr.Hit and tr.HitPos + (tr.HitPos - origin):GetNormalized() * 4 or tr.HitPos
 		end
 
-		-- Camera tilt & FOV effects
-		-- Speed effects only apply in normal walk movement (not noclip/ladder/etc.)
+		-- FOV & screen shake effects during charge
 		if pl:GetMoveType() == MOVETYPE_WALK then
 			local vel = pl:GetVelocity()
-			local speed = vel:Length2D() -- Horizontal speed only (ignore vertical from jumps)
+			local speed = vel:Length2D()
 
-			-- Mild tilt at ALL speeds (subtle body english during normal movement)
-			if speed > 80 then
-				local mildTilt = vel:GetNormalized():Dot(angles:Right()) * math.Clamp(speed / 350, 0, 1) * 2
-				targetroll = targetroll + mildTilt
-			end
+			-- FOV widens gradually from rest, reaching full (20% wider) at 350 HU/s (max speed)
+			local intensity = math.Clamp(speed / 350, 0, 1)
+			local fwdDot = math.Clamp(math.abs(angles:Forward():Dot(vel:GetNormalized())), 0, 1)
+			fov = fov + fov * fwdDot * 0.20 * intensity
 
-			-- CHARGING: Aggressive missile-like tunnel vision
-			if speed >= 290 then
-				local intensity = math.Clamp((speed - 290) / 60, 0, 1)
-				local fwdDot = math.Clamp(math.abs(angles:Forward():Dot(vel:GetNormalized())), 0, 1)
-
-				-- FOV widen to simulate speed (up to 20% wider)
-				fov = fov + fov * fwdDot * 0.20 * intensity
-
-				-- Charge tilt on top of the mild tilt
-				targetroll = targetroll + vel:GetNormalized():Dot(angles:Right()) * 3 * intensity
-			elseif speed < 150 then
-				-- Snappy recovery if tackled/stopped suddenly to feel the jarring crash of losing momentum
-				if (pl.LastFrameSpeed or 0) >= 290 then
-					-- We just slammed into a wall or got tackled out of a charge!
-					util.ScreenShake(origin, 4, 8, 0.25, 128)
-
-					-- Bump the camera tilt out of place realistically, so it smoothly swings back
-					roll = roll + math.Rand(-0.8, 0.8)
-				else
-					-- Quickly and smoothly recover back to normal zero tilt
-					roll = Lerp(10 * FrameTime(), roll, 0)
-
-					if lerpfov and math.abs(lerpfov - fov) > 0.5 then
-						lerpfov = Lerp(20 * FrameTime(), lerpfov, fov) -- fast but smooth FOV zoom-out
-					end
-				end
+			if speed < 150 and (pl.LastFrameSpeed or 0) >= 270 then
+				-- Screen shake when stopped from a charge (tackled or hit a wall)
+				util.ScreenShake(origin, 4, 8, 0.25, 128)
 			end
 
 			pl.LastFrameSpeed = speed
 		end
 	end
 
-	roll = Lerp(FrameTime() * 8, roll, targetroll)
-	angles.roll = angles.roll + roll
 	lerpfov = math.Approach(lerpfov or fov, fov, FrameTime() * 60)
-
 	return self.BaseClass.CalcView(self, pl, origin, angles, lerpfov, znear, zfar)
 end
 

@@ -641,7 +641,7 @@ function GM:BroadcastAction(subject, action, teamnum)
 			BroadcastLua(string.format("GAMEMODE:AddPlayerAction(%q, %q)", subject, action))
 		end
 	else
-		BroadcastLua(string.format("GAMEMODE:AddPlayerAction(Entity("..subject:EntIndex().."), %q )", action))
+		BroadcastLua(string.format("GAMEMODE:AddPlayerAction(Entity("..subject:EntIndex().."), %q)", action))
 	end
 end
 

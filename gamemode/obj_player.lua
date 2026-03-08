@@ -244,7 +244,6 @@ if SERVER then
             -- Track tackles
             if knocker:Team() ~= ply:Team() then
                 knocker:SetNWInt("Tackles", knocker:GetNWInt("Tackles", 0) + 1)
-                GAMEMODE:BroadcastAction(knocker, "tackled " .. ply:Name())
             end
             if GameEvents.OnPlayerKnockedDownBy then GameEvents.OnPlayerKnockedDownBy:Invoke(ply, knocker) end
             gamemode.Call("OnPlayerKnockedDownBy", ply, knocker)
