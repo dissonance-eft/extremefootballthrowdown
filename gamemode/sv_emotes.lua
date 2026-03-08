@@ -119,7 +119,7 @@ local EmotePassthrough = {
 }
 
 -- Cooldown to prevent spam
-local EmoteGenericCooldown = 3.0
+local EmoteGenericCooldown = 4.0
 local PlayerCooldowns = {}
 
 -- Clean up cooldowns when player disconnects to prevent memory leak

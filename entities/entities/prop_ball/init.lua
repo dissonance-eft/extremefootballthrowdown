@@ -162,7 +162,7 @@ function ENT:PhysicsUpdate(phys)
 				if IsValid(ply) and ply:Alive() and ply ~= lastCarrier and not ply:IsCarrying()
 					and lastCarrierTeam ~= 0 and ply:Team() == lastCarrierTeam
 					and ply:GetState() ~= STATE_KNOCKEDDOWN then
-					local plyPos = ply:GetPos() + Vector(0, 0, 48) -- Target upper chest
+					local plyPos = ply:GetPos() + Vector(0, 0, 60) -- Target chest (GetPos = feet, 60 ≈ chest on ~72u player)
 					local dist = myPos:Distance(plyPos)
 					if dist < bestDist then
 						local toPly = (plyPos - myPos):GetNormalized()
@@ -177,7 +177,7 @@ function ENT:PhysicsUpdate(phys)
 			end
 			
 			if IsValid(bestTarget) then
-				local toTarget = (bestTarget:GetPos() + Vector(0, 0, 48) - myPos):GetNormalized()
+				local toTarget = (bestTarget:GetPos() + Vector(0, 0, 60) - myPos):GetNormalized()
 				-- Gently rotate the velocity vector toward the target — preserves speed, looks like a real curve
 				local newDir = LerpVector(2.0 * FrameTime(), dir, toTarget):GetNormalized()
 				phys:SetVelocityInstantaneous(newDir * speed)

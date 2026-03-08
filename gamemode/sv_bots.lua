@@ -71,6 +71,14 @@ end
 local function BalanceTeams()
     if not GetConVar("eft_bots_enabled"):GetBool() then return end
 
+    -- Kick any bots that ended up on TEAM_UNASSIGNED (e.g. created via the `bot` console command
+    -- instead of through EFT's CreateBot). They have no team context so their AI breaks.
+    for _, ply in ipairs(player.GetBots()) do
+        if ply:Team() == TEAM_UNASSIGNED then
+            ply:Kick("Unassigned bot — not created by EFT system")
+        end
+    end
+
     -- CreateFakeClient() requires at least one human player to be connected.
     -- Without a human, the engine rejects fake clients entirely.
     local humanCount = player.GetCount() - #player.GetBots()

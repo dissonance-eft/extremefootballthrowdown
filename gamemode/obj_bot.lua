@@ -805,16 +805,21 @@ function Bot:ExecuteState()
 
                             local fromPos = botPos + Vector(0, 0, 64) -- approximate GetShootPos()
 
-                            -- If the direct path hits geometry before the goal center (common because
-                            -- trigger_goal OBBCenters sit inside goal structures), use the hit point
-                            -- as the aim target instead — that's the opening face of the goal.
+                            -- Check if the direct path to the goal center is blocked by geometry.
+                            -- For open goals (endzone, wall slot) the trace misses → flat arc, aim at center.
+                            -- For ring/hoop goals the rim blocks the direct line → high arc, aim ABOVE center
+                            -- so the ball peaks over the rim and falls DOWN through the opening vertically,
+                            -- rather than arriving horizontally and hitting the basket.
                             local losTr = util.TraceLine({
                                 start = fromPos,
                                 endpos = actualGoalPos,
                                 mask = MASK_SOLID_BRUSHONLY,
                             })
-                            local aimPos = losTr.Hit and losTr.HitPos or actualGoalPos
-                            local calcPitch, flightTime = CalcThrowPitch(fromPos, aimPos, throwForce)
+                            local useHighArc = losTr.Hit
+                            -- Aim 64 units above goal center for ring goals so the arc drops through the hoop.
+                            -- Tune this if balls still clip the rim (raise) or overshoot behind backboard (lower).
+                            local aimPos = useHighArc and (actualGoalPos + Vector(0, 0, 40)) or actualGoalPos
+                            local calcPitch, flightTime = CalcThrowPitch(fromPos, aimPos, throwForce, useHighArc)
 
                             if calcPitch then
                                 self.throwState = "goalshot"
@@ -1182,6 +1187,7 @@ function Bot:ExecuteState()
             if carrier:GetVelocity():Length2D() < 80 and self.ply:TargetsContain(carrier) then
                 self.wantPunch = true
             end
+
         else
             self.state = Bot.STATE_CHASE_BALL
         end
