@@ -2003,6 +2003,29 @@ The system must remain playable at low counts and chaotic at high counts without
 
 ---
 
+### L-008 — Client Options Menu <!-- id: APP-L-008 -->
+
+**Problem:** HUD elements are currently all-or-nothing. Some players want the game feed (kill/tackle/goal notifications in the upper right); others find it distracting. Camera tilt strength, crosshair visibility, and similar preferences are hardcoded or only adjustable via console.
+
+**Desired Solution:** An in-game options panel (accessible via a keybind, F-key, or `eft_options` console command) that lets players configure client-side ConVars without touching the console. Priority settings:
+
+| Setting | ConVar | Default |
+|---|---|---|
+| Game feed (upper right) | `hud_deathnotice_time` (0 = hidden) | 6s |
+| Feed entry limit | `hud_deathnotice_limit` | 5 |
+| Camera tilt strength | `eft_camera_tilt_scale` | 1.0 |
+| First-person mode | `eft_firstperson` | off |
+| Crosshair | (existing) | on |
+
+**Scope:**
+- Client-only DFrame panel, no server involvement
+- Settings saved via `cookie.Set` / `cookie.Get` or `CVAR:ARCHIVE`
+- Accessible from F1 help screen or dedicated keybind
+
+**Status:** Not started. Low priority — core gameplay takes precedence.
+
+---
+
 ## APPENDIX K — SUBSYSTEMS <!-- id: APP-K -->
 
 ### D3bot Navigation Engine <!-- id: APP-K-D3BOT -->

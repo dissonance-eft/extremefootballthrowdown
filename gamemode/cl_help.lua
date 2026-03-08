@@ -132,7 +132,8 @@ function GM:ShowHelp()
 
 	-- ── COLUMNS ─────────────────────────────────────────────────────────────
 	local colY   = noticeY + 90 + 20
-	local colH   = sh - colY - 50
+	local emoteH = 150
+	local colH   = sh - colY - 50 - emoteH - 12
 
 	-- LEFT: Controls
 	local ctrlPanel = vgui.Create("DPanel", frame)
@@ -220,6 +221,77 @@ function GM:ShowHelp()
 			ry = ry + lineH + 10
 		end
 	end
+
+	-- ── EMOTES ──────────────────────────────────────────────────────────────
+	-- Type any trigger word in chat to play the sound (hidden from chat log).
+	local emoteNames = {
+		"adultvirgin","aightbet","aightbet2","allahackbar","ayaya","bigbraintime",
+		"bleaugh","brostraightup","dsplaugh","eahhh","fuckyou","getdahwatah",
+		"gotchabitch","goteem","hahashutup","happymeal","honk","icanfly",
+		"interiorcrocodile","jjonahlaugh","kawhilaugh","letmein","lottadamage",
+		"marioscream","nani","nemomine","ohyesdaddy","oof","panpakapan",
+		"pickedwronghouse","pufferfish","quack","rdjrscream","resettheball",
+		"shannonlaugh","smellbeef","smoovehaha","smoovesplash","stahp",
+		"stephenbullshit","stephentickmeoff","stopit","stupidbitch","surferbaaa",
+		"thisistorture","tophead","whatchasay","whatspoppin","whattheschnitzel",
+		"whenwillyoulearn","whyrunning","whyyoualwayslyin","xpshutdown","xpstartup",
+		"yeahboi","yeet","yodel","youeatallmybeans","yourenotmydad","yourethebest",
+		-- NoxiousNet legacy
+		"ael","almostharvestingseason","awthatstoobad","bikehorn","breakyourlegs",
+		"cheesybakedpotato","drinkfromyourskull","feeltoburn","femfarquaad",
+		"gabegaben","gabethanks","gabewtw","gank","givemethebutter","gogalo",
+		"greatatyourjunes","imthecoolest","imthegreatest","killthemall",
+		"laff1","laff2","laff3","laff4","laff5","lag2","lesstalkmoreraid",
+		"luigiimhome","malefarquaad","noidontwantthat","obeyyourthirst",
+		"obeyyourthirstsync","oldesttrick","sanic1","sanic2","sanic3","sanic4",
+		"shazbot","smokedyourbutt","taunt04","thanksgivingblowout","wttsuom",
+		"youbastards","youbrokemygrill",
+		-- Passthrough (shows in chat + plays sound)
+		"thanks",
+	}
+	table.sort(emoteNames)
+
+	local emotePanel = vgui.Create("DPanel", frame)
+	emotePanel:SetPos(pad, colY + colH + 12)
+	emotePanel:SetSize(sw - pad * 2, emoteH)
+	emotePanel.Paint = function(s, w, h)
+		draw.RoundedBox(6, 0, 0, w, h, COLOR_PANEL)
+	end
+
+	MakeLabel(emotePanel, 0, 8, sw - pad * 2, 28,
+		"EMOTES  —  type trigger word in chat to play (text is hidden)",
+		"EFTHelpSection", COLOR_ORANGE, false):SetContentAlignment(5)
+
+	local scroll = vgui.Create("DScrollPanel", emotePanel)
+	scroll:SetPos(10, 42)
+	scroll:SetSize(sw - pad * 2 - 20, emoteH - 52)
+
+	local canvas = scroll:GetCanvas()
+	local chipFont = "EFTHelpWIPBody"
+	local chipPadX, chipPadY = 8, 4
+	local chipH = 26
+	local cx, cy = 0, 0
+	local rowH = chipH + chipPadY
+
+	for _, name in ipairs(emoteNames) do
+		local chip = vgui.Create("DLabel", canvas)
+		chip:SetFont(chipFont)
+		chip:SetText(name)
+		chip:SizeToContents()
+		local cw = chip:GetWide() + chipPadX * 2
+
+		if cx + cw > (sw - pad * 2 - 20) and cx > 0 then
+			cx = 0
+			cy = cy + rowH
+		end
+
+		chip:SetPos(cx + chipPadX, cy + chipPadY / 2)
+		chip:SetSize(chip:GetWide(), chipH)
+		chip:SetColor(COLOR_DIM)
+		cx = cx + cw + 6
+	end
+
+	canvas:SetTall(cy + rowH + 4)
 
 	-- ── CLOSE HINT ──────────────────────────────────────────────────────────
 	MakeLabel(frame, 0, sh - 32, sw, 24, "Press F1 or ESC to close",
