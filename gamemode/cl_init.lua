@@ -1306,7 +1306,7 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 		end
 	end
 
-	lerpfov = math.Approach(lerpfov or fov, fov, FrameTime() * 60)
+	lerpfov = Lerp(FrameTime() * 8, lerpfov or fov, fov)
 	return self.BaseClass.CalcView(self, pl, origin, angles, lerpfov, znear, zfar)
 end
 
