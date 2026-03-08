@@ -62,6 +62,7 @@ function PANEL:AddText( txt, color )
 	
 	Derma_Hook( lbl, 	"ApplySchemeSettings", 	"Scheme", 	"GameNoticeLabel" )
 	lbl:ApplySchemeSettings()
+	lbl:SetFont("EFTFeedFont")
 	lbl:SetText( txt )
 	
 	if( string.Left( txt , 1 ) == "#" && !color ) then color = GAMEMODE.DeathNoticeDefaultColor end // localised ent death

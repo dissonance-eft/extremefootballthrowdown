@@ -6,6 +6,13 @@
 
 include( 'vgui/vgui_gamenotice.lua' )
 
+surface.CreateFont("EFTFeedFont", {
+	font = "Patua One",
+	size = 18,
+	weight = 400,
+	antialias = true,
+})
+
 local hud_deathnotice_time = CreateClientConVar( "hud_deathnotice_time", "6", true, false )
 local hud_deathnotice_limit = CreateClientConVar( "hud_deathnotice_limit", "5", true, false )
 

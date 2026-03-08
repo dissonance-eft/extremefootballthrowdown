@@ -1311,7 +1311,7 @@ function GM:CalcView(pl, origin, angles, fov, znear, zfar)
 				-- FOV widen to simulate speed (up to 20% wider)
 				fov = fov + fov * fwdDot * 0.20 * intensity
 
-				-- Charge tilt on top of the mild tilt (halved — was 6, scales with mouse sensitivity)
+				-- Charge tilt on top of the mild tilt
 				targetroll = targetroll + vel:GetNormalized():Dot(angles:Right()) * 3 * intensity
 			elseif speed < 150 then
 				-- Snappy recovery if tackled/stopped suddenly to feel the jarring crash of losing momentum
@@ -1980,12 +1980,6 @@ function GM:TeamScored(teamid, hitter, points, homerun)
 	self.RoundEndScroll = 0
 	self.RoundEndCameraTime = RealTime()
 	self.RoundHomeRun = homerun
-
-	if IsValid(hitter) then
-		self:AddPlayerAction(hitter, "scored for " .. (team.GetName(teamid) or "?") .. "!")
-	else
-		self:AddPlayerAction(team.GetName(teamid) or "?", "scored!")
-	end
 
 	if not MySelf:IsValid() then return end
 
