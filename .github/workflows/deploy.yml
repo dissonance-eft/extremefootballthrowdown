@@ -41,5 +41,6 @@ jobs:
           key: ${{ secrets.DEPLOY_KEY }}
           script: |
             cd /home/gmod/server/garrysmod/gamemodes/extremefootballthrowdown
-            git pull origin master
+            git fetch origin
+            git reset --hard origin/master
             sudo systemctl restart eft-srcds
